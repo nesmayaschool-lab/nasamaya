@@ -141,7 +141,13 @@ footer{padding:24px 0;text-align:center;font-size:.9em;opacity:.65}
   <h2 class="section-title">الاختبارات والمراجعة الشهرية</h2>
   <label style="font-weight:700;display:block;margin-bottom:10px">اختر المادة:</label>
   <select id="testSubjectSelect" style="margin-bottom:20px;width:100%;max-width:320px"></select>
-  <div class="quiz-box" id="testBox"></div>
+  <div id="testGate" class="quiz-box" style="text-align:center">
+    <p>الاختبار والمراجعة الشهرية للمشتركين فقط. اكتب كود الشهر الخاص بمادتك وصفك للدخول.</p>
+    <input type="text" id="testCode" placeholder="كود دخول الاختبار الشهري" style="width:70%;max-width:260px">
+    <button class="btn" style="padding:9px 20px;font-size:.95em" onclick="checkTestGate()">دخول</button>
+    <div class="small-note" id="testGateMsg"></div>
+  </div>
+  <div class="quiz-box hidden" id="testBox"></div>
   <div class="small-note" style="text-align:center;margin-top:14px">تقدر تحمّل نسخة من الاختبار وترسلها بنفسك للمشتركين اللي مفيش عندهم إنترنت وقت المذاكرة.</div>
 </section>
 
@@ -272,8 +278,8 @@ document.querySelectorAll('#gradeTabs .tab').forEach(btn=>{
     renderTestSubjectOptions(currentGrade);
   });
 });
-document.getElementById('testSubjectSelect').addEventListener('change', (e)=>{
-  renderTest(e.target.value, e.target.options[e.target.selectedIndex].dataset.name);
+document.getElementById('testSubjectSelect').addEventListener('change', ()=>{
+  resetTestGate();
 });
 document.getElementById('liveSubjectSelect').addEventListener('change', (e)=>{
   renderLiveGroups(currentGrade, e.target.value);
@@ -310,7 +316,19 @@ function renderTestSubjectOptions(grade){
     opt.textContent = s.name;
     sel.appendChild(opt);
   });
-  renderTest(sel.value, sel.options[sel.selectedIndex].dataset.name);
+  resetTestGate();
+}
+function resetTestGate(){
+  const gate = document.getElementById('testGate');
+  const box = document.getElementById('testBox');
+  if(!gate) return;
+  gate.classList.remove('hidden');
+  box.classList.add('hidden');
+  box.innerHTML = '';
+  const codeInput = document.getElementById('testCode');
+  if(codeInput) codeInput.value = '';
+  const msg = document.getElementById('testGateMsg');
+  if(msg) msg.textContent = '';
 }
 
 function renderTest(key, subjectName){
@@ -331,6 +349,20 @@ function renderTest(key, subjectName){
       <button class="btn" style="font-size:.9em;padding:9px 20px" onclick="downloadTestPdf('${key}','${subjectName}')">تحميل PDF</button>
     </div>`;
   box.innerHTML = html;
+}
+function checkTestGate(){
+  const sel = document.getElementById('testSubjectSelect');
+  const key = sel.value;
+  const subjectName = sel.options[sel.selectedIndex].dataset.name;
+  const val = document.getElementById('testCode').value.trim().toUpperCase();
+  const expected = `${key}-${currentGrade}-TEST-${monthTag()}`;
+  if(val === expected){
+    document.getElementById('testGate').classList.add('hidden');
+    document.getElementById('testBox').classList.remove('hidden');
+    renderTest(key, subjectName);
+  } else {
+    document.getElementById('testGateMsg').textContent = 'كود غير صحيح لهذه المادة والصف';
+  }
 }
 function answerTest(qi, oi, btn){
   testAnswers[qi] = oi;
