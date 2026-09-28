@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>إدارة المشتركين - منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.chk-row{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
+.chk-row label{display:flex;align-items:center;gap:6px;font-weight:700}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+<div class="wrap">
+  <h1>إدارة اشتراكات الطلاب</h1>
+  <div id="area">جارِ التحقق من الدخول...</div>
+</div>
+<footer class="wrap">منصة نسماية</footer>
+
+<script>
+const ADMIN_EMAIL = "nesmayaschool@gmail.com"; // غيّره لإيميلك الحقيقي المسجّل في تسجيل الدخول
+const SUBJECT_LABELS = {MATH:"رياضة", SCI:"علوم", SOC:"دراسات اجتماعية"};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+auth.onAuthStateChanged(async (user)=>{
+  const area = document.getElementById('area');
+  if(!user){
+    area.innerHTML = `<p>لازم تسجّل دخول أولاً بحساب الأدمن.</p><a class="btn" href="login.html?next=admin-students.html">تسجيل الدخول</a>`;
+    return;
+  }
+  if(user.email !== ADMIN_EMAIL){
+    area.innerHTML = `<p>هذا الحساب غير مصرح له بالدخول لهذه الصفحة.</p>`;
+    return;
+  }
+  loadStudents();
+});
+
+async function loadStudents(){
+  const area = document.getElementById('area');
+  area.innerHTML = 'جارِ تحميل قائمة الطلاب...';
+  const snap = await db.collection('students').get();
+  if(snap.empty){ area.innerHTML = 'لا يوجد طلاب مسجّلين بعد.'; return; }
+  area.innerHTML = '';
+  snap.forEach(doc=>{
+    const s = doc.data();
+    const id = doc.id;
+    const card = document.createElement('div');
+    card.className = 'card2';
+    let chks = '';
+    Object.keys(SUBJECT_LABELS).forEach(key=>{
+      const checked = s.subjects && s.subjects[key] ? 'checked' : '';
+      chks += `<label><input type="checkbox" id="${id}-${key}" ${checked}> ${SUBJECT_LABELS[key]}</label>`;
+    });
+    card.innerHTML = `<strong>${s.name}</strong> — الصف: ${s.grade}
+      <div class="chk-row">${chks}</div>
+      <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="saveStudent('${id}')">حفظ</button>
+      <span class="small-note" id="msg-${id}"></span>`;
+    area.appendChild(card);
+  });
+}
+
+async function saveStudent(id){
+  const subjects = {};
+  Object.keys(SUBJECT_LABELS).forEach(key=>{
+    subjects[key] = document.getElementById(`${id}-${key}`).checked;
+  });
+  const msg = document.getElementById('msg-'+id);
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('students').doc(id).update({subjects});
+    const check = await db.collection('students').doc(id).get();
+    const saved = check.data().subjects || {};
+    const on = Object.keys(SUBJECT_LABELS).filter(k=>saved[k]).map(k=>SUBJECT_LABELS[k]);
+    msg.textContent = 'تم الحفظ ✓';
+    msg.style.fontWeight = '900';
+    alert('تم الحفظ بنجاح.\nالمواد المفعّلة الآن: ' + (on.length ? on.join('، ') : 'لا يوجد'));
+  }catch(e){
+    msg.textContent = 'خطأ: ' + e.message;
+    alert('فشل الحفظ:\n' + e.message);
+  }
+}
+</script>
+</body>
+</html>
