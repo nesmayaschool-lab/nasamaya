@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منصة نسماية - دراسات اجتماعية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+
+<div class="hero wrap">
+  <h1>دراسات اجتماعية</h1>
+  <p>لأولى وتانية وتالتة إعدادي</p>
+</div>
+
+<div class="wrap" id="authArea"></div>
+
+<div id="contentArea" class="hidden">
+  <section class="wrap">
+    <a href="index.html" class="back-link">← الرئيسية</a>
+    <h2 class="section-title">الحصص المباشرة</h2>
+    <div class="grid" id="liveGrid"></div>
+  </section>
+  <section class="wrap">
+    <h2 class="section-title">الاختبارات والمراجعة الشهرية</h2>
+    <div class="quiz-box" id="testBox"></div>
+  </section>
+</div>
+
+<footer class="wrap">منصة نسماية</footer>
+
+<script src="app.js"></script>
+<script src="data.js"></script>
+<script>initSubjectAccess('SOC');</script>
+</body>
+</html>

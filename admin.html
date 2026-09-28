@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لوحة تحكم منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+input,textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:8px;background:#fff;color:var(--ink)}
+.opt-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.opt-row input{margin-bottom:0}
+.card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="wrap" id="gateScreen">
+  <div class="hero">
+    <h1>🔐 لوحة تحكم منصة نسماية</h1>
+    <p>هذه الصفحة خاصة بك فقط.</p>
+    <input type="password" id="adminPass" placeholder="كلمة السر" style="max-width:280px;margin:0 auto">
+    <br><button class="btn" onclick="tryLogin()" style="margin-top:10px">دخول</button>
+    <div class="small-note" id="loginMsg"></div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="panel">
+  <h1>لوحة تحكم الأسئلة والمراجعات</h1>
+  <p class="small-note">عدّل هنا، ثم اضغط "تحميل data.js المحدث" وارفعه على GitHub بدل الملف القديم (نفس الاسم بالظبط).</p>
+  <div class="small-note" id="loadMsg">جارِ التحميل من data.js...</div>
+
+  <div id="subjectsArea"></div>
+
+  <h2 class="section-title">المراجعات النثرية</h2>
+  <div id="reviewsArea"></div>
+
+  <div style="margin:24px 0;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" onclick="exportData()">⬇️ تحميل data.js المحدث</button>
+  </div>
+  <div class="small-note" id="exportMsg"></div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "NASAMAYA2026"; // غيّرها لكلمة سر خاصة بك
+const SUBJECT_LABELS = {MATH:"رياضة", SCI:"علوم", SOC:"دراسات اجتماعية"};
+let testBank = null, reviewBank = null;
+
+function tryLogin(){
+  if(document.getElementById('adminPass').value === ADMIN_PASSWORD){
+    document.getElementById('gateScreen').classList.add('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+    loadData();
+  } else {
+    document.getElementById('loginMsg').textContent = 'كلمة السر غير صحيحة';
+  }
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('data.js', {cache:'no-store'});
+    if(!res.ok) throw new Error('تعذر تحميل data.js');
+    const code = await res.text();
+    testBank = new Function(code + '\nreturn testBank;')();
+    reviewBank = new Function(code + '\nreturn reviewBank;')();
+    document.getElementById('loadMsg').textContent = '';
+    renderSubjects();
+    renderReviews();
+  }catch(e){
+    document.getElementById('loadMsg').textContent = 'خطأ: ' + e.message + ' — تأكد أن admin.html و data.js في نفس المجلد على GitHub.';
+  }
+}
+
+function renderSubjects(){
+  const area = document.getElementById('subjectsArea');
+  area.innerHTML = '';
+  Object.keys(testBank).forEach(key=>{
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<h2 class="section-title">${SUBJECT_LABELS[key]||key}</h2><div id="qs-${key}"></div>
+      <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="addQuestion('${key}')">+ إضافة سؤال</button>`;
+    area.appendChild(wrap);
+    renderQuestions(key);
+  });
+}
+function renderQuestions(key){
+  const container = document.getElementById('qs-'+key);
+  container.innerHTML = '';
+  testBank[key].forEach((item,qi)=>{
+    const card = document.createElement('div');
+    card.className = 'card2';
+    let optsHtml = '';
+    item.options.forEach((opt,oi)=>{
+      optsHtml += `<div class="opt-row">
+        <input type="radio" name="c-${key}-${qi}" ${oi===item.correct?'checked':''} onchange="setCorrect('${key}',${qi},${oi})">
+        <input type="text" value="${opt.replace(/"/g,'&quot;')}" oninput="updateOption('${key}',${qi},${oi},this.value)">
+      </div>`;
+    });
+    card.innerHTML = `<textarea rows="2" oninput="updateQuestion('${key}',${qi},this.value)">${item.q}</textarea>
+      ${optsHtml}
+      <button class="btn" style="background:#B5493F;color:#fff;font-size:.85em;padding:6px 14px" onclick="removeQuestion('${key}',${qi})">حذف</button>`;
+    container.appendChild(card);
+  });
+}
+function updateQuestion(key,qi,val){ testBank[key][qi].q = val; }
+function updateOption(key,qi,oi,val){ testBank[key][qi].options[oi] = val; }
+function setCorrect(key,qi,oi){ testBank[key][qi].correct = oi; }
+function removeQuestion(key,qi){ testBank[key].splice(qi,1); renderQuestions(key); }
+function addQuestion(key){ testBank[key].push({q:"سؤال جديد", options:["اختيار 1","اختيار 2","اختيار 3"], correct:0}); renderQuestions(key); }
+
+function renderReviews(){
+  const area = document.getElementById('reviewsArea');
+  area.innerHTML = '';
+  Object.keys(reviewBank).forEach(key=>{
+    const card = document.createElement('div');
+    card.className = 'card2';
+    card.innerHTML = `<h3>${SUBJECT_LABELS[key]||key}</h3>
+      <textarea rows="4" oninput="reviewBank['${key}']=this.value">${reviewBank[key]}</textarea>`;
+    area.appendChild(card);
+  });
+}
+
+async function exportData(){
+  const content = `/* TESTBANK_START */
+const testBank = ${JSON.stringify(testBank, null, 2)};
+/* TESTBANK_END */
+
+/* REVIEWBANK_START */
+const reviewBank = ${JSON.stringify(reviewBank, null, 2)};
+/* REVIEWBANK_END */
+`;
+  const blob = new Blob([content], {type:'text/javascript'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.js';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  document.getElementById('exportMsg').textContent = 'تم تحميل data.js — ارفعه الآن على GitHub بدل الملف القديم.';
+}
+</script>
+</body>
+</html>

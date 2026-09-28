@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تسجيل الدخول - منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:10px;background:#fff;color:var(--ink)}
+.tabs2{display:flex;gap:8px;margin-bottom:16px}
+.tab2{flex:1;padding:10px;border:2px solid var(--pine);border-radius:8px;background:transparent;color:var(--pine);font-weight:700;cursor:pointer;font-family:inherit}
+.tab2.active{background:var(--pine);color:var(--paper)}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+<div class="wrap" style="max-width:420px">
+  <h1>تسجيل الدخول / حساب جديد</h1>
+  <div class="tabs2">
+    <button class="tab2 active" id="tabLogin" onclick="showTab('login')">لدي حساب</button>
+    <button class="tab2" id="tabSignup" onclick="showTab('signup')">حساب جديد</button>
+  </div>
+
+  <div id="loginForm">
+    <input type="email" id="loginEmail" placeholder="البريد الإلكتروني">
+    <input type="password" id="loginPass" placeholder="كلمة السر">
+    <button class="btn" style="width:100%" onclick="doLogin()">دخول</button>
+  </div>
+
+  <div id="signupForm" class="hidden">
+    <input type="text" id="suName" placeholder="اسم الطالب كاملاً">
+    <select id="suGrade">
+      <option value="1">أولى إعدادي</option>
+      <option value="2">تانية إعدادي</option>
+      <option value="3">تالتة إعدادي</option>
+    </select>
+    <input type="email" id="suEmail" placeholder="البريد الإلكتروني">
+    <input type="password" id="suPass" placeholder="كلمة سر (6 أحرف على الأقل)">
+    <button class="btn" style="width:100%" onclick="doSignup()">إنشاء الحساب</button>
+  </div>
+
+  <div class="small-note" id="authMsg" style="text-align:center;margin-top:12px"></div>
+</div>
+<footer class="wrap">منصة نسماية</footer>
+
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+function showTab(which){
+  document.getElementById('tabLogin').classList.toggle('active', which==='login');
+  document.getElementById('tabSignup').classList.toggle('active', which==='signup');
+  document.getElementById('loginForm').classList.toggle('hidden', which!=='login');
+  document.getElementById('signupForm').classList.toggle('hidden', which!=='signup');
+  document.getElementById('authMsg').textContent = '';
+}
+
+function redirectTarget(){
+  const params = new URLSearchParams(window.location.search);
+  return params.get('next') || 'index.html';
+}
+
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const msg = document.getElementById('authMsg');
+  try{
+    await auth.signInWithEmailAndPassword(email, pass);
+    window.location.href = redirectTarget();
+  }catch(e){
+    msg.textContent = 'خطأ: ' + (e.message || 'تأكد من البيانات');
+  }
+}
+
+async function doSignup(){
+  const name = document.getElementById('suName').value.trim();
+  const grade = document.getElementById('suGrade').value;
+  const email = document.getElementById('suEmail').value.trim();
+  const pass = document.getElementById('suPass').value;
+  const msg = document.getElementById('authMsg');
+  if(!name || !email || pass.length < 6){
+    msg.textContent = 'من فضلك املأ كل البيانات (كلمة السر 6 أحرف على الأقل)';
+    return;
+  }
+  try{
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.collection('students').doc(cred.user.uid).set({
+      name: name,
+      grade: grade,
+      subjects: {MATH:false, SCI:false, SOC:false},
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    window.location.href = redirectTarget();
+  }catch(e){
+    msg.textContent = 'خطأ: ' + (e.message || 'تعذر إنشاء الحساب');
+  }
+}
+</script>
+</body>
+</html>
