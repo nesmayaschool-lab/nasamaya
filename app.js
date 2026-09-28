@@ -6,6 +6,7 @@ const groupsMeta = [
   {letter:"هـ", id:"E", days:"الأحد + الأربعاء", time:"4:00 م"},
 ];
 const GRADE_LABELS = {"1":"أولى إعدادي","2":"تانية إعدادي","3":"تالتة إعدادي"};
+const ADMIN_EMAIL = "nesmayaschool@gmail.com";
 let currentGrade = "1";
 let currentUser = null;
 let currentStudent = null;
@@ -43,7 +44,8 @@ function initSubjectAccess(subjectKey){
     }
     currentStudent = doc.data();
     currentGrade = currentStudent.grade || "1";
-    const active = currentStudent.subjects && currentStudent.subjects[subjectKey];
+    const isAdmin = user.email === ADMIN_EMAIL;
+    const active = isAdmin || (currentStudent.subjects && currentStudent.subjects[subjectKey]);
     if(!active){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center">
@@ -54,12 +56,23 @@ function initSubjectAccess(subjectKey){
       </div>`;
       return;
     }
-    authArea.innerHTML = `<div class="small-note">مرحبًا ${currentStudent.name} — ${GRADE_LABELS[currentGrade]}
-      <button class="btn" style="background:#888;padding:6px 14px;font-size:.8em;margin-right:10px" onclick="firebase.auth().signOut().then(()=>location.reload())">خروج</button></div>`;
+    const adminSwitch = isAdmin ? `<div style="margin:10px 0"><strong>معاينة الأدمن:</strong>
+      <select onchange="changeAdminGrade(this.value,'${subjectKey}')" style="margin-right:8px">
+        <option value="1">أولى إعدادي</option><option value="2">تانية إعدادي</option><option value="3">تالتة إعدادي</option>
+      </select></div>` : '';
+    authArea.innerHTML = `<div class="small-note">مرحبًا ${currentStudent.name} — <span id="gradeLabel">${GRADE_LABELS[currentGrade]}</span>
+      <button class="btn" style="background:#888;padding:6px 14px;font-size:.8em;margin-right:10px" onclick="firebase.auth().signOut().then(()=>location.reload())">خروج</button></div>${adminSwitch}`;
     contentArea.classList.remove('hidden');
     renderLiveGroups(subjectKey);
     renderTest(subjectKey);
   });
+}
+
+function changeAdminGrade(g, subjectKey){
+  currentGrade = g;
+  const label = document.getElementById('gradeLabel');
+  if(label) label.textContent = GRADE_LABELS[g];
+  renderLiveGroups(subjectKey);
 }
 
 function renderLiveGroups(subjectKey){
