@@ -90,6 +90,14 @@ function renderLiveGroups(subjectKey){
       <button class="btn" style="width:100%;padding:9px 0;font-size:.9em" onclick="joinGroup('${uid}','${link}')">انضم الآن</button>`;
     grid.appendChild(card);
   });
+  let note = document.getElementById('joinNote');
+  if(!note){
+    note = document.createElement('div');
+    note.id = 'joinNote';
+    note.className = 'small-note';
+    grid.insertAdjacentElement('afterend', note);
+  }
+  note.textContent = 'بعد الضغط على "انضم الآن": اختر Join in browser (أو Join in app لو نزّلت تطبيق Jitsi Meet) وتجاهل أرقام التليفون. على الموبايل يفضّل تنزيل التطبيق.';
 }
 function joinGroup(uid, link){
   const name = (currentStudent && currentStudent.name) || 'طالب';
