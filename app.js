@@ -162,13 +162,16 @@ async function renderMaterials(key){
       const d = doc.data();
       materialsCache[doc.id] = d;
       const date = (d.createdAt && d.createdAt.toDate) ? d.createdAt.toDate().toLocaleDateString('ar-EG') : '';
+      const hasQ = d.questions && d.questions.length > 0;
       html += `<div class="card" style="margin-bottom:12px">
         <div class="meta">${KIND_LABELS[d.kind]||''}${date ? ' · '+date : ''}</div>
         <h3>${esc(d.title)}</h3>
         <div id="body-${doc.id}" class="hidden" style="white-space:pre-wrap;margin:10px 0">${esc(d.body)}</div>
+        <div id="quiz-${doc.id}" class="hidden" style="margin:10px 0"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="toggleMaterial('${doc.id}')">عرض / إخفاء</button>
+          <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="toggleMaterial('${doc.id}')">عرض / إخفاء النص</button>
           <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="downloadMaterialPdf('${doc.id}')">تحميل PDF</button>
+          ${hasQ ? `<button class="btn" style="font-size:.85em;padding:8px 18px;background:var(--pine);color:var(--paper)" onclick="toggleItemQuiz('${doc.id}')">حل الأسئلة التفاعلية</button>` : ''}
         </div></div>`;
     });
     box.innerHTML = html;
@@ -179,6 +182,46 @@ async function renderMaterials(key){
 function toggleMaterial(id){
   const el = document.getElementById('body-'+id);
   if(el) el.classList.toggle('hidden');
+}
+
+let itemAnswers = {};
+function toggleItemQuiz(id){
+  const el = document.getElementById('quiz-'+id);
+  if(!el) return;
+  const wasHidden = el.classList.contains('hidden');
+  el.classList.toggle('hidden');
+  if(wasHidden && !el.dataset.rendered){
+    renderItemQuiz(id);
+    el.dataset.rendered = '1';
+  }
+}
+function renderItemQuiz(id){
+  const d = materialsCache[id];
+  if(!d || !d.questions) return;
+  itemAnswers[id] = {};
+  const el = document.getElementById('quiz-'+id);
+  let html = '';
+  d.questions.forEach((item,qi)=>{
+    html += `<div style="font-weight:700;margin:10px 0 6px">${qi+1}) ${esc(item.q)}</div><div id="iq-${id}-${qi}">`;
+    item.options.forEach((opt,oi)=>{
+      html += `<button class="quiz-opt" onclick="answerItemQuiz('${id}',${qi},${oi},this)">${esc(opt)}</button>`;
+    });
+    html += `</div>`;
+  });
+  html += `<div id="iqResult-${id}" style="font-weight:700;margin:8px 0;min-height:1.4em"></div>
+    <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="showItemScore('${id}')">إظهار النتيجة</button>`;
+  el.innerHTML = html;
+}
+function answerItemQuiz(id, qi, oi, btn){
+  itemAnswers[id][qi] = oi;
+  document.querySelectorAll(`#iq-${id}-${qi} .quiz-opt`).forEach(b=>b.classList.remove('correct'));
+  btn.classList.add('correct');
+}
+function showItemScore(id){
+  const d = materialsCache[id];
+  let score = 0;
+  d.questions.forEach((item,qi)=>{ if(itemAnswers[id][qi] === item.correct) score++; });
+  document.getElementById('iqResult-'+id).textContent = `نتيجتك: ${score} من ${d.questions.length}`;
 }
 async function downloadMaterialPdf(id){
   const d = materialsCache[id];

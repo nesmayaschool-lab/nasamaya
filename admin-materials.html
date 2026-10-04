@@ -78,6 +78,11 @@ function renderForm(){
       <input type="text" id="titleInput" placeholder="مثال: مراجعة الوحدة الأولى">
       <label>المحتوى (هيظهر للطالب ويتحمّل PDF بنفس الترتيب)</label>
       <textarea id="bodyInput" rows="10" placeholder="اكتب هنا نص المراجعة أو أسئلة الاختبار..."></textarea>
+
+      <label style="margin-top:6px">أسئلة تفاعلية (اختياري — الطالب يقدر يحلها بجانب النص)</label>
+      <div id="qBuilder"></div>
+      <button class="btn" style="font-size:.85em;padding:7px 16px;margin-bottom:12px" onclick="addQBuilderRow()">+ إضافة سؤال تفاعلي</button>
+      <br>
       <button class="btn" onclick="publishMaterial()">نشر للطلاب</button>
       <div class="small-note" id="publishMsg"></div>
     </div>
@@ -89,6 +94,43 @@ function renderForm(){
   loadList();
 }
 
+let qRows = [];
+function addQBuilderRow(){
+  const id = Date.now() + Math.random();
+  qRows.push({id, q:'', options:['','',''], correct:0});
+  renderQBuilder();
+}
+function removeQBuilderRow(id){
+  qRows = qRows.filter(r=>r.id!==id);
+  renderQBuilder();
+}
+function updateQBuilder(id, field, val, optIndex){
+  const row = qRows.find(r=>r.id===id);
+  if(!row) return;
+  if(field==='q') row.q = val;
+  else if(field==='opt') row.options[optIndex] = val;
+  else if(field==='correct') row.correct = optIndex;
+}
+function renderQBuilder(){
+  const area = document.getElementById('qBuilder');
+  area.innerHTML = '';
+  qRows.forEach(row=>{
+    const card = document.createElement('div');
+    card.className = 'card2';
+    let opts = '';
+    row.options.forEach((o,oi)=>{
+      opts += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input type="radio" name="corr-${row.id}" ${oi===row.correct?'checked':''} onchange="updateQBuilder(${row.id},'correct',null,${oi})">
+        <input type="text" placeholder="اختيار ${oi+1}" oninput="updateQBuilder(${row.id},'opt',this.value,${oi})" style="margin-bottom:0">
+      </div>`;
+    });
+    card.innerHTML = `<textarea rows="2" placeholder="نص السؤال" oninput="updateQBuilder(${row.id},'q',this.value)"></textarea>
+      ${opts}
+      <button class="btn" style="background:#B5493F;color:#fff;font-size:.8em;padding:6px 14px" onclick="removeQBuilderRow(${row.id})">حذف السؤال</button>`;
+    area.appendChild(card);
+  });
+}
+
 async function publishMaterial(){
   const subject = document.getElementById('subjSel').value;
   const grade = document.getElementById('gradeSel').value;
@@ -97,16 +139,21 @@ async function publishMaterial(){
   const body = document.getElementById('bodyInput').value.trim();
   const msg = document.getElementById('publishMsg');
   if(!title || !body){ msg.textContent = 'اكتب العنوان والمحتوى'; return; }
+  const questions = qRows
+    .filter(r=>r.q.trim() && r.options.every(o=>o.trim()))
+    .map(r=>({q:r.q.trim(), options:r.options.map(o=>o.trim()), correct:r.correct}));
   msg.textContent = 'جارِ النشر...';
   try{
     await db.collection('materials').doc(subject).collection('grades').doc(grade)
       .collection('items').add({
-        kind, title, body,
+        kind, title, body, questions,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     msg.textContent = 'تم النشر بنجاح ✓';
     document.getElementById('titleInput').value = '';
     document.getElementById('bodyInput').value = '';
+    qRows = [];
+    renderQBuilder();
     loadList();
   }catch(e){
     msg.textContent = 'خطأ: ' + e.message;
