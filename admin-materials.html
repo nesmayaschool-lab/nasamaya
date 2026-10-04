@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>إضافة مراجعات واختبارات - منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:10px;background:#fff;color:var(--ink)}
+.card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row2{display:flex;gap:10px;flex-wrap:wrap}
+.row2 > div{flex:1;min-width:140px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+<div class="wrap">
+  <h1>إضافة مراجعة أو اختبار أو تدريب</h1>
+  <div id="area">جارِ التحقق من الدخول...</div>
+</div>
+<footer class="wrap">منصة نسماية</footer>
+
+<script>
+const ADMIN_EMAIL = "nesmayaschool@gmail.com";
+const SUBJECT_LABELS = {MATH:"رياضة", SCI:"علوم", SOC:"دراسات اجتماعية"};
+const GRADE_LABELS = {"1":"أولى إعدادي","2":"تانية إعدادي","3":"تالتة إعدادي"};
+const KIND_LABELS = {exam:"اختبار", review:"مراجعة", weekly:"تدريب أسبوعي"};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+auth.onAuthStateChanged(async (user)=>{
+  const area = document.getElementById('area');
+  if(!user){
+    area.innerHTML = `<p>لازم تسجّل دخول أولاً بحساب الأدمن.</p><a class="btn" href="login.html?next=admin-materials.html">تسجيل الدخول</a>`;
+    return;
+  }
+  if(user.email !== ADMIN_EMAIL){
+    area.innerHTML = `<p>هذا الحساب غير مصرح له بالدخول لهذه الصفحة.</p>`;
+    return;
+  }
+  renderForm();
+});
+
+function renderForm(){
+  const area = document.getElementById('area');
+  area.innerHTML = `
+    <div class="card2">
+      <div class="row2">
+        <div><label>المادة</label>
+          <select id="subjSel">
+            <option value="MATH">رياضة</option>
+            <option value="SCI">علوم</option>
+            <option value="SOC">دراسات اجتماعية</option>
+          </select>
+        </div>
+        <div><label>الصف</label>
+          <select id="gradeSel">
+            <option value="1">أولى إعدادي</option>
+            <option value="2">تانية إعدادي</option>
+            <option value="3">تالتة إعدادي</option>
+          </select>
+        </div>
+        <div><label>النوع</label>
+          <select id="kindSel">
+            <option value="review">مراجعة</option>
+            <option value="exam">اختبار</option>
+            <option value="weekly">تدريب أسبوعي</option>
+          </select>
+        </div>
+      </div>
+      <label>العنوان</label>
+      <input type="text" id="titleInput" placeholder="مثال: مراجعة الوحدة الأولى">
+      <label>المحتوى (هيظهر للطالب ويتحمّل PDF بنفس الترتيب)</label>
+      <textarea id="bodyInput" rows="10" placeholder="اكتب هنا نص المراجعة أو أسئلة الاختبار..."></textarea>
+      <button class="btn" onclick="publishMaterial()">نشر للطلاب</button>
+      <div class="small-note" id="publishMsg"></div>
+    </div>
+    <h2 class="section-title">المحتوى المنشور حاليًا</h2>
+    <div id="listArea">جارِ التحميل...</div>
+  `;
+  document.getElementById('subjSel').onchange = loadList;
+  document.getElementById('gradeSel').onchange = loadList;
+  loadList();
+}
+
+async function publishMaterial(){
+  const subject = document.getElementById('subjSel').value;
+  const grade = document.getElementById('gradeSel').value;
+  const kind = document.getElementById('kindSel').value;
+  const title = document.getElementById('titleInput').value.trim();
+  const body = document.getElementById('bodyInput').value.trim();
+  const msg = document.getElementById('publishMsg');
+  if(!title || !body){ msg.textContent = 'اكتب العنوان والمحتوى'; return; }
+  msg.textContent = 'جارِ النشر...';
+  try{
+    await db.collection('materials').doc(subject).collection('grades').doc(grade)
+      .collection('items').add({
+        kind, title, body,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    msg.textContent = 'تم النشر بنجاح ✓';
+    document.getElementById('titleInput').value = '';
+    document.getElementById('bodyInput').value = '';
+    loadList();
+  }catch(e){
+    msg.textContent = 'خطأ: ' + e.message;
+  }
+}
+
+async function loadList(){
+  const subject = document.getElementById('subjSel').value;
+  const grade = document.getElementById('gradeSel').value;
+  const listArea = document.getElementById('listArea');
+  listArea.innerHTML = 'جارِ التحميل...';
+  const snap = await db.collection('materials').doc(subject).collection('grades').doc(grade)
+    .collection('items').orderBy('createdAt','desc').get();
+  if(snap.empty){ listArea.innerHTML = '<p class="small-note">لا يوجد محتوى منشور لهذه المادة والصف بعد.</p>'; return; }
+  listArea.innerHTML = '';
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const card = document.createElement('div');
+    card.className = 'card2';
+    card.innerHTML = `<div class="meta">${KIND_LABELS[d.kind]||''} — ${SUBJECT_LABELS[subject]} — ${GRADE_LABELS[grade]}</div>
+      <strong>${d.title}</strong>
+      <button class="btn" style="background:#B5493F;color:#fff;font-size:.8em;padding:6px 14px;margin-right:8px" onclick="deleteMaterial('${subject}','${grade}','${doc.id}')">حذف</button>`;
+    listArea.appendChild(card);
+  });
+}
+
+async function deleteMaterial(subject, grade, id){
+  if(!confirm('متأكد من الحذف؟')) return;
+  await db.collection('materials').doc(subject).collection('grades').doc(grade).collection('items').doc(id).delete();
+  loadList();
+}
+</script>
+</body>
+</html>
