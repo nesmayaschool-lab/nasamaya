@@ -6,10 +6,20 @@ const groupsMeta = [
   {letter:"هـ", id:"E", days:"الأحد + الأربعاء", time:"4:00 م"},
 ];
 const GRADE_LABELS = {"1":"أولى إعدادي","2":"تانية إعدادي","3":"تالتة إعدادي"};
+const SUBJECT_LABELS = {MATH:"رياضة", SCI:"علوم", SOC:"دراسات اجتماعية"};
+const LIVE_PAGES = {MATH:"math.html", SCI:"science.html", SOC:"social.html"};
+const EXAMS_PAGES = {MATH:"math-exams.html", SCI:"science-exams.html", SOC:"social-exams.html"};
+const KIND_LABELS = {exam:"اختبار", review:"مراجعة", weekly:"تدريب أسبوعي"};
 const ADMIN_EMAIL = "nesmayaschool@gmail.com";
 let currentGrade = "1";
 let currentUser = null;
 let currentStudent = null;
+let pageMode = 'live';
+let pageSubject = '';
+let dbGlobal = null;
+let materialsCache = {};
+
+function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 async function saveFile(filename, blob){
   const a = document.createElement('a');
@@ -21,17 +31,20 @@ async function saveFile(filename, blob){
 }
 
 // ---- Firebase-based access control ----
-function initSubjectAccess(subjectKey){
+function initSubjectAccess(subjectKey, mode){
+  pageMode = mode || 'live';
+  pageSubject = subjectKey;
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
+  dbGlobal = db;
   auth.onAuthStateChanged(async (user)=>{
     const authArea = document.getElementById('authArea');
     const contentArea = document.getElementById('contentArea');
     if(!user){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center">
-        <p>لازم تسجّل دخول أو تعمل حساب جديد عشان تشوف الحصص والاختبارات.</p>
+        <p>لازم تسجّل دخول أو تعمل حساب جديد عشان تشوف المحتوى.</p>
         <a class="btn" href="login.html?next=${location.pathname.split('/').pop()}">تسجيل الدخول / حساب جديد</a>
       </div>`;
       return;
@@ -49,7 +62,7 @@ function initSubjectAccess(subjectKey){
     if(!active){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center">
-        <p>مرحبًا ${currentStudent.name}! اشتراكك في هذه المادة غير مفعّل بعد.</p>
+        <p>مرحبًا ${esc(currentStudent.name)}! اشتراكك في هذه المادة غير مفعّل بعد.</p>
         <p class="small-note">ادفع عبر فودافون كاش وابعت لقطة الدفع على واتساب ليتم تفعيل المادة لحسابك.</p>
         <a class="btn" href="subscribe.html">صفحة الاشتراك</a>
         <br><br><button class="btn" style="background:#888" onclick="firebase.auth().signOut().then(()=>location.reload())">تسجيل الخروج</button>
@@ -57,24 +70,51 @@ function initSubjectAccess(subjectKey){
       return;
     }
     const adminSwitch = isAdmin ? `<div style="margin:10px 0"><strong>معاينة الأدمن:</strong>
-      <select onchange="changeAdminGrade(this.value,'${subjectKey}')" style="margin-right:8px">
+      <select onchange="changeAdminGrade(this.value)" style="margin-right:8px">
         <option value="1">أولى إعدادي</option><option value="2">تانية إعدادي</option><option value="3">تالتة إعدادي</option>
       </select></div>` : '';
-    authArea.innerHTML = `<div class="small-note">مرحبًا ${currentStudent.name} — <span id="gradeLabel">${GRADE_LABELS[currentGrade]}</span>
+    authArea.innerHTML = `<div class="small-note">مرحبًا ${esc(currentStudent.name)} — <span id="gradeLabel">${GRADE_LABELS[currentGrade]}</span>
       <button class="btn" style="background:#888;padding:6px 14px;font-size:.8em;margin-right:10px" onclick="firebase.auth().signOut().then(()=>location.reload())">خروج</button></div>${adminSwitch}`;
     contentArea.classList.remove('hidden');
-    renderLiveGroups(subjectKey);
-    renderTest(subjectKey);
+    renderSubNav();
+    renderPage();
   });
 }
 
-function changeAdminGrade(g, subjectKey){
+function renderSubNav(){
+  const contentArea = document.getElementById('contentArea');
+  let nav = document.getElementById('subNav');
+  if(!nav){
+    nav = document.createElement('div');
+    nav.id = 'subNav';
+    nav.className = 'wrap';
+    contentArea.insertBefore(nav, contentArea.firstChild);
+  }
+  const live = pageMode === 'live';
+  nav.innerHTML = `<div class="grade-tabs" style="justify-content:flex-start;margin:0 0 10px">
+    <a class="tab ${live?'active':''}" href="${LIVE_PAGES[pageSubject]}" style="text-decoration:none;display:inline-block">البث المباشر</a>
+    <a class="tab ${live?'':'active'}" href="${EXAMS_PAGES[pageSubject]}" style="text-decoration:none;display:inline-block">الاختبارات والمراجعات</a>
+  </div>`;
+}
+
+function renderPage(){
+  if(pageMode === 'exams'){
+    renderMaterials(pageSubject);
+    renderTest(pageSubject);
+  } else {
+    renderLiveGroups(pageSubject);
+    const old = document.getElementById('testBox');
+    if(old){ const sec = old.closest('section'); if(sec) sec.remove(); }
+  }
+}
+function changeAdminGrade(g){
   currentGrade = g;
   const label = document.getElementById('gradeLabel');
   if(label) label.textContent = GRADE_LABELS[g];
-  renderLiveGroups(subjectKey);
+  renderPage();
 }
 
+// ---- Live groups ----
 function renderLiveGroups(subjectKey){
   const grid = document.getElementById('liveGrid');
   if(!grid) return;
@@ -104,25 +144,83 @@ function joinGroup(uid, link){
   window.open(link + '#userInfo.displayName="' + encodeURIComponent(name) + '"', '_blank', 'noopener');
 }
 
+// ---- Materials (reviews / exams / weekly) written by the teacher ----
+async function renderMaterials(key){
+  const box = document.getElementById('materialsBox');
+  if(!box) return;
+  box.innerHTML = '<p class="small-note">جارِ التحميل...</p>';
+  try{
+    const snap = await dbGlobal.collection('materials').doc(key).collection('grades').doc(currentGrade)
+      .collection('items').orderBy('createdAt','desc').get();
+    if(snap.empty){
+      box.innerHTML = '<p>لا توجد مراجعات أو اختبارات لصفّك حتى الآن. سيتم إضافتها قريبًا.</p>';
+      return;
+    }
+    materialsCache = {};
+    let html = '';
+    snap.forEach(doc=>{
+      const d = doc.data();
+      materialsCache[doc.id] = d;
+      const date = (d.createdAt && d.createdAt.toDate) ? d.createdAt.toDate().toLocaleDateString('ar-EG') : '';
+      html += `<div class="card" style="margin-bottom:12px">
+        <div class="meta">${KIND_LABELS[d.kind]||''}${date ? ' · '+date : ''}</div>
+        <h3>${esc(d.title)}</h3>
+        <div id="body-${doc.id}" class="hidden" style="white-space:pre-wrap;margin:10px 0">${esc(d.body)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="toggleMaterial('${doc.id}')">عرض / إخفاء</button>
+          <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="downloadMaterialPdf('${doc.id}')">تحميل PDF</button>
+        </div></div>`;
+    });
+    box.innerHTML = html;
+  }catch(e){
+    box.innerHTML = '<p>تعذر تحميل المحتوى: ' + esc(e.message) + '</p>';
+  }
+}
+function toggleMaterial(id){
+  const el = document.getElementById('body-'+id);
+  if(el) el.classList.toggle('hidden');
+}
+async function downloadMaterialPdf(id){
+  const d = materialsCache[id];
+  if(!d) return;
+  if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = '400 24px Tajawal, sans-serif';
+  const blocks = [];
+  String(d.body).split('\n').forEach(par=>{
+    if(par.trim() === ''){ blocks.push({t:'', size:24}); return; }
+    wrapText(probe, par, 860).forEach(l=>blocks.push({t:l, size:24}));
+  });
+  const title = `منصة نسماية — ${SUBJECT_LABELS[pageSubject]} — ${GRADE_LABELS[currentGrade]}`;
+  const sub = `${KIND_LABELS[d.kind]||''}: ${d.title}`;
+  const pages = pagedCanvases(title, [{t:sub, size:28, bold:true}, {t:'', size:12}, ...blocks]);
+  const blob = pagesToPdfBlob(pages);
+  await saveFile(`${KIND_LABELS[d.kind]||'ملف'}-${d.title}.pdf`, blob);
+}
+
+// ---- Interactive monthly quiz (optional, from data.js) ----
 let testAnswers = {};
+function getQuestions(key){
+  return (typeof testBank !== 'undefined' && testBank[key] && testBank[key][currentGrade]) || [];
+}
 function renderTest(key){
   testAnswers = {};
   const box = document.getElementById('testBox');
-  const qs = testBank[key];
-  let html = '';
+  if(!box) return;
+  const sec = box.closest('section');
+  const qs = getQuestions(key);
+  if(!qs.length){ if(sec) sec.classList.add('hidden'); return; }
+  if(sec) sec.classList.remove('hidden');
+  let html = `<h3 style="color:var(--pine)">${SUBJECT_LABELS[key]} — ${GRADE_LABELS[currentGrade]}</h3>`;
   qs.forEach((item,qi)=>{
-    html += `<div style="font-weight:700;margin-bottom:10px">${qi+1}) ${item.q}</div><div id="qgroup-${qi}">`;
+    html += `<div style="font-weight:700;margin:12px 0 8px">${qi+1}) ${esc(item.q)}</div><div id="qgroup-${qi}">`;
     item.options.forEach((opt,oi)=>{
-      html += `<button class="quiz-opt" onclick="answerTest(${qi},${oi},this)">${opt}</button>`;
+      html += `<button class="quiz-opt" onclick="answerTest(${qi},${oi},this)">${esc(opt)}</button>`;
     });
     html += `</div>`;
   });
   html += `<div id="testResult" style="font-weight:700;margin:10px 0;min-height:1.4em"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-      <button class="btn" style="font-size:.9em" onclick="showTestScore('${key}')">إظهار النتيجة</button>
-      <button class="btn" style="font-size:.9em" onclick="downloadTestPdf('${key}')">تحميل الاختبار PDF</button>
-      <button class="btn" style="font-size:.9em" onclick="downloadReviewPdf('${key}')">تحميل المراجعة النثرية PDF</button>
-    </div>`;
+    <button class="btn" style="font-size:.9em" onclick="showTestScore('${key}')">إظهار النتيجة</button>`;
   box.innerHTML = html;
 }
 function answerTest(qi, oi, btn){
@@ -131,12 +229,13 @@ function answerTest(qi, oi, btn){
   btn.classList.add('correct');
 }
 function showTestScore(key){
-  const qs = testBank[key];
+  const qs = getQuestions(key);
   let score = 0;
   qs.forEach((item,qi)=>{ if(testAnswers[qi] === item.correct) score++; });
   document.getElementById('testResult').textContent = `نتيجتك: ${score} من ${qs.length}`;
 }
 
+// ---- PDF helpers (multi-page A4-like) ----
 function wrapText(ctx, text, maxWidth){
   const words = text.split(' ');
   let lines = [], line = '';
@@ -148,58 +247,37 @@ function wrapText(ctx, text, maxWidth){
   if(line) lines.push(line);
   return lines;
 }
-function textPageCanvas(titleText, bodyLines){
-  const width = 1000, margin = 60;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  const ctx = canvas.getContext('2d');
-  ctx.direction = 'rtl'; ctx.textAlign = 'right';
-  const blocks = [{t:titleText, size:32, bold:true}, {t:'', size:16}];
-  bodyLines.forEach(b=> blocks.push(b));
-  let y = margin;
-  const measured = blocks.map(b=>{ const lh = Math.round(b.size*1.5); y += lh; return {...b, lh}; });
-  canvas.height = Math.ceil(y + margin);
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle = '#1E2A22'; ctx.direction = 'rtl'; ctx.textAlign = 'right';
-  let cy = margin;
-  measured.forEach(b=>{
+function pagedCanvases(title, blocks){
+  const W = 1000, H = 1414, M = 70;
+  const pages = [];
+  let cv, ctx, cy;
+  function newPage(){
+    cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#1E2A22'; ctx.direction = 'rtl'; ctx.textAlign = 'right';
+    cy = M;
+    pages.push(cv);
+  }
+  newPage();
+  const all = [{t:title, size:32, bold:true}, {t:'', size:16}].concat(blocks);
+  all.forEach(b=>{
+    const lh = Math.round(b.size*1.5);
+    if(cy + lh > H - M) newPage();
     ctx.font = `${b.bold?'700':'400'} ${b.size}px Tajawal, sans-serif`;
-    if(b.t) ctx.fillText(b.t, b.indent ? width-margin-30 : width-margin, cy);
-    cy += b.lh;
+    if(b.t) ctx.fillText(b.t, W-M, cy);
+    cy += lh;
   });
-  return canvas;
+  return pages;
 }
-async function canvasToPdfBlob(canvas){
-  const imgData = canvas.toDataURL('image/png');
+function pagesToPdfBlob(pages){
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({unit:'pt', format:[canvas.width*0.75, canvas.height*0.75]});
-  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width*0.75, canvas.height*0.75);
-  return pdf.output('blob');
-}
-async function downloadTestPdf(key){
-  if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
-  const qs = testBank[key];
-  const ctxProbe = document.createElement('canvas').getContext('2d');
-  const lines = [{t:`الاسم: ${currentStudent?currentStudent.name:'______________________'}`, size:24}];
-  qs.forEach((item,qi)=>{
-    ctxProbe.font = '700 26px Tajawal, sans-serif';
-    wrapText(ctxProbe, `${qi+1}) ${item.q}`, 880).forEach(l=>lines.push({t:l, size:26, bold:true}));
-    ctxProbe.font = '400 24px Tajawal, sans-serif';
-    item.options.forEach(opt=>{
-      wrapText(ctxProbe, '- '+opt, 850).forEach(l=>lines.push({t:l, size:24, indent:true}));
-    });
-    lines.push({t:'', size:16});
+  const w = 1000*0.75, h = 1414*0.75;
+  const pdf = new jsPDF({unit:'pt', format:[w,h]});
+  pages.forEach((cv,i)=>{
+    if(i > 0) pdf.addPage([w,h]);
+    pdf.addImage(cv.toDataURL('image/png'), 'PNG', 0, 0, w, h);
   });
-  const canvas = textPageCanvas('منصة نسماية — اختبار الشهر', lines);
-  const blob = await canvasToPdfBlob(canvas);
-  await saveFile('اختبار-الشهر.pdf', blob);
-}
-async function downloadReviewPdf(key){
-  if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
-  const ctxProbe = document.createElement('canvas').getContext('2d');
-  const lines = [];
-  wrapText(ctxProbe, reviewBank[key], 880).forEach(l=>lines.push({t:l, size:24}));
-  const canvas = textPageCanvas('منصة نسماية — المراجعة النثرية الشهرية', lines);
-  const blob = await canvasToPdfBlob(canvas);
-  await saveFile('المراجعة-النثرية.pdf', blob);
+  return pdf.output('blob');
 }
