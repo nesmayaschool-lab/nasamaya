@@ -200,7 +200,7 @@ function renderItemQuiz(id){
   if(!d || !d.questions) return;
   itemAnswers[id] = {};
   const el = document.getElementById('quiz-'+id);
-  let html = '';
+  let html = `<p class="small-note">بعد اختيار إجابة: <strong>اللون الأخضر = إجابة صحيحة</strong>، <strong>اللون الفوشيا = إجابة خاطئة</strong>.</p>`;
   d.questions.forEach((item,qi)=>{
     html += `<div style="font-weight:700;margin:10px 0 6px">${qi+1}) ${esc(item.q)}</div><div id="iq-${id}-${qi}">`;
     item.options.forEach((opt,oi)=>{
@@ -260,7 +260,8 @@ function renderTest(key){
   const qs = getQuestions(key);
   if(!qs.length){ if(sec) sec.classList.add('hidden'); return; }
   if(sec) sec.classList.remove('hidden');
-  let html = `<h3 style="color:var(--pine)">${SUBJECT_LABELS[key]} — ${GRADE_LABELS[currentGrade]}</h3>`;
+  let html = `<h3 style="color:var(--pine)">${SUBJECT_LABELS[key]} — ${GRADE_LABELS[currentGrade]}</h3>
+    <p class="small-note">بعد اختيار إجابة: <strong>اللون الأخضر = إجابة صحيحة</strong>، <strong>اللون الفوشيا = إجابة خاطئة</strong>.</p>`;
   qs.forEach((item,qi)=>{
     html += `<div style="font-weight:700;margin:12px 0 8px">${qi+1}) ${esc(item.q)}</div><div id="qgroup-${qi}">`;
     item.options.forEach((opt,oi)=>{
