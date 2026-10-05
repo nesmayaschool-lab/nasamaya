@@ -1,6 +1,6 @@
 :root{
-  --paper:#F6F1E4; --ink:#1E2A22; --pine:#26433A; --pine-dark:#152922;
-  --gold:#C98A3B; --gold-soft:#E7C58C; --line:#D8CDB2; --card:#FFFFFF;
+  --paper:#F6F1E4; --ink:#1E2A22; --pine:#6FCF97; --pine-dark:#1E2A22;
+  --gold:#D6249F; --gold-soft:#F3BEE3; --line:#D8CDB2; --card:#FFFFFF;
   box-sizing:border-box;
 }
 *{box-sizing:border-box}
@@ -15,7 +15,7 @@ header{padding:22px 0;border-bottom:1px solid var(--line)}
 .hero p{max-width:52ch;margin:0 auto 1.2em;opacity:.85}
 .grade-tabs{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}
 .tab{padding:10px 22px;border-radius:999px;border:2px solid var(--pine);color:var(--pine);background:transparent;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer}
-.tab.active{background:var(--pine);color:var(--paper)}
+.tab.active{background:var(--pine);color:var(--ink)}
 section{padding:30px 0}
 .section-title{color:var(--pine);font-size:1.4em;border-bottom:3px solid var(--gold-soft);display:inline-block;padding-bottom:6px;margin-bottom:20px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}

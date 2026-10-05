@@ -3,455 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>منصة نسماية - دروس أونلاين للمرحلة الإعدادية | رياضة وعلوم ودراسات اجتماعية</title>
-<meta name="description" content="منصة نسماية لدروس أونلاين تفاعلية للصف الأول والثاني والثالث الإعدادي: رياضة (جبر وهندسة)، علوم (فيزياء وكيمياء وأحياء)، ودراسات اجتماعية. حصص مباشرة، اختبارات شهرية، ومتابعة مستمرة.">
-<meta name="keywords" content="دروس اونلاين اعدادي, مدرس رياضة اعدادي, مدرس علوم اعدادي, دروس خصوصية اونلاين مصر, اختبارات شهرية اعدادي, حصص مباشرة اونلاين">
-<meta property="og:title" content="منصة نسماية - دروس أونلاين للمرحلة الإعدادية">
-<meta property="og:description" content="دروس تفاعلية مباشرة في الرياضة والعلوم والدراسات الاجتماعية لطلاب أولى وتانية وتالتة إعدادي.">
-<meta property="og:type" content="website">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<title>منصة نسماية - دروس أونلاين للمرحلة الإعدادية</title>
+<meta name="description" content="منصة نسماية لدروس أونلاين تفاعلية للصف الأول والثاني والثالث الإعدادي: رياضة، علوم، ودراسات اجتماعية. حصص مباشرة، اختبارات شهرية، ومتابعة مستمرة.">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>
-:root{
-  --paper:#F6F1E4; --ink:#1E2A22; --pine:#26433A; --pine-dark:#152922;
-  --gold:#C98A3B; --gold-soft:#E7C58C; --line:#D8CDB2; --card:#FFFFFF;
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
-}
-*{box-sizing:border-box}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#141C17; --ink:#EDE7D6; --pine:#8FB6A6; --pine-dark:#0F1713;
-    --gold:#E0A85C; --gold-soft:#4A3B22; --line:#33402F; --card:#1B2620;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#141C17; --ink:#EDE7D6; --pine:#8FB6A6; --pine-dark:#0F1713;
-  --gold:#E0A85C; --gold-soft:#4A3B22; --line:#33402F; --card:#1B2620;
-}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:'Tajawal',sans-serif;line-height:1.7}
-h1,h2,h3{font-weight:900;margin:0 0 .3em}
-p{margin:0 0 1em}
-.wrap{max-width:1000px;margin:0 auto;padding:0 20px}
-header{padding:22px 0;border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px;font-size:1.3em;font-weight:900;color:var(--pine)}
-.brand span.mark{width:14px;height:14px;background:var(--gold);border-radius:3px;display:inline-block;transform:rotate(20deg)}
-.hero{padding:60px 0 40px;text-align:center}
-.hero h1{font-size:clamp(1.8em,5vw,2.7em);color:var(--pine);max-width:14ch;margin:0 auto .3em}
-.hero p{max-width:52ch;margin:0 auto 1.4em;font-size:1.05em;opacity:.85}
-.grade-tabs{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px}
-.tab{padding:10px 22px;border-radius:999px;border:2px solid var(--pine);color:var(--pine);background:transparent;font-family:inherit;font-size:1em;font-weight:700;cursor:pointer}
-.tab.active{background:var(--pine);color:var(--paper)}
-section{padding:36px 0}
-.section-title{color:var(--pine);font-size:1.5em;border-bottom:3px solid var(--gold-soft);display:inline-block;padding-bottom:6px;margin-bottom:22px}
-.subjects{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
-.card h3{color:var(--pine);font-size:1.15em}
-.card .meta{font-size:.92em;opacity:.75;margin-bottom:10px}
-.card .price{font-weight:900;color:var(--gold);font-size:1.1em}
-.groups-table{width:100%;border-collapse:collapse;overflow-x:auto;display:block}
-.groups-table thead{background:var(--pine);color:var(--paper)}
-.groups-table th,.groups-table td{padding:12px 14px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
-.table-scroll{overflow-x:auto;border-radius:10px;border:1px solid var(--line)}
-.quiz-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;max-width:560px;margin:0 auto}
-.quiz-q{font-weight:700;margin-bottom:14px;font-size:1.1em}
-.quiz-opt{display:block;width:100%;text-align:right;padding:12px 16px;margin-bottom:10px;border:2px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font-family:inherit;font-size:1em;cursor:pointer}
-.quiz-opt.correct{border-color:var(--pine);background:var(--pine);color:var(--paper)}
-.quiz-opt.wrong{border-color:#B5493F;background:#B5493F;color:#fff}
-.quiz-feedback{margin-top:10px;font-weight:700;min-height:1.4em}
-.cta-box{background:var(--pine);color:var(--paper);border-radius:14px;padding:40px 24px;text-align:center}
-.cta-box h2{font-size:1.6em;margin-bottom:.4em}
-.cta-box p{opacity:.9;max-width:44ch;margin:0 auto 1.4em}
-.btn{display:inline-block;background:var(--gold);color:var(--pine-dark);font-weight:900;padding:12px 28px;border-radius:999px;text-decoration:none;font-size:1em;border:none;cursor:pointer;font-family:inherit}
-select,input[type=text]{padding:10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;background:var(--paper);color:var(--ink)}
-footer{padding:24px 0;text-align:center;font-size:.9em;opacity:.65}
-.hidden{display:none}
-.small-note{font-size:.85em;opacity:.7;margin-top:10px}
-#printArea{display:none}
-@media print{
-  body *{visibility:hidden}
-  #printArea,#printArea *{visibility:visible}
-  #printArea{display:block;position:absolute;top:0;right:0;left:0;width:100%;padding:20px}
-}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><div class="wrap brand">
-  <svg width="34" height="34" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <defs>
-      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+<header><div class="wrap" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  <a href="index.html" class="brand">
+    <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="#2EC4B6"/><stop offset="100%" stop-color="#1B9AAA"/>
-      </linearGradient>
-    </defs>
-    <circle cx="32" cy="32" r="30" fill="url(#g1)"/>
-    <path d="M14 26c6-6 12 6 18 0s12-6 18 0" stroke="#FFD166" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-    <path d="M14 36c6-6 12 6 18 0s12-6 18 0" stroke="#FF6B6B" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-    <path d="M32 12 L32 22" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="32" cy="10" r="3.2" fill="#FFD166"/>
-  </svg>
-  منصة نسماية
+      </linearGradient></defs>
+      <circle cx="32" cy="32" r="30" fill="url(#g1)"/>
+      <path d="M14 26c6-6 12 6 18 0s12-6 18 0" stroke="#D6249F" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M14 36c6-6 12 6 18 0s12-6 18 0" stroke="#FF6B6B" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    منصة نسماية
+  </a>
+  <a href="login.html" class="btn" style="padding:8px 18px;font-size:.9em">تسجيل الدخول / حساب جديد</a>
 </div></header>
 
 <div class="hero wrap">
   <h1>دروس أونلاين تفاعلية للمرحلة الإعدادية</h1>
-  <p>رياضة (جبر وهندسة) · علوم (فيزياء، كيمياء، أحياء) · دراسات اجتماعية — مجموعات صغيرة، حصتين أسبوعيًا، متابعة شهرية.</p>
-  <div class="grade-tabs" id="gradeTabs">
-    <button class="tab active" data-grade="1">أولى إعدادي</button>
-    <button class="tab" data-grade="2">تانية إعدادي</button>
-    <button class="tab" data-grade="3">تالتة إعدادي</button>
-  </div>
+  <p>رياضة، علوم، ودراسات اجتماعية لأولى وتانية وتالتة إعدادي — حصص مباشرة، اختبارات شهرية، ومتابعة مستمرة.</p>
 </div>
 
 <section class="wrap">
-  <h2 class="section-title">المواد المتاحة</h2>
-  <div class="subjects" id="subjectsGrid"></div>
-</section>
-
-<section class="wrap">
-  <h2 class="section-title">مواعيد المجموعات الشهرية</h2>
-  <div class="table-scroll">
-    <table class="groups-table">
-      <thead><tr><th>المجموعة</th><th>الأيام</th><th>حصص/أسبوع</th><th>حصص/شهر</th></tr></thead>
-      <tbody>
-        <tr><td>مجموعة أ</td><td>السبت + الثلاثاء</td><td>2</td><td>8</td></tr>
-        <tr><td>مجموعة ب</td><td>الأحد + الأربعاء</td><td>2</td><td>8</td></tr>
-        <tr><td>مجموعة ج</td><td>الاثنين + الخميس</td><td>2</td><td>8</td></tr>
-      </tbody>
-    </table>
+  <h2 class="section-title">اختر المادة</h2>
+  <div class="grid">
+    <a href="math.html" class="card">
+      <h3>رياضة</h3>
+      <div class="meta">جبر وهندسة</div>
+      <div class="price">200 جنيه / شهريًا</div>
+    </a>
+    <a href="science.html" class="card">
+      <h3>علوم</h3>
+      <div class="meta">فيزياء وكيمياء وأحياء</div>
+      <div class="price">200 جنيه / شهريًا</div>
+    </a>
+    <a href="social.html" class="card">
+      <h3>دراسات اجتماعية</h3>
+      <div class="meta"></div>
+      <div class="price">200 جنيه / شهريًا</div>
+    </a>
   </div>
 </section>
 
 <section class="wrap">
-  <h2 class="section-title">الحصص المباشرة</h2>
-  <div class="quiz-box" style="text-align:center;margin-bottom:20px">
-    <p>1) ادفع عبر <strong>فودافون كاش (01014379356)</strong> · 2) ابعت لقطة الدفع مع اسم المادة والمجموعة · 3) هيوصلك كود دخول خاص بمادتك ومجموعتك لهذا الشهر.</p>
-    <a class="btn" target="_blank" rel="noopener"
-       href="https://wa.me/201270774662?text=مرحباً%2C%20أنا%20(اسمك)%2C%20اشتركت%20في%20مادة%20(اسم%20المادة)%20مجموعة%20(أ/ب/ج)%2C%20مرفق%20لقطة%20الدفع">
-       أرسل إثبات الدفع واتساب</a>
-  </div>
-  <label style="font-weight:700;display:block;margin-bottom:10px">اختر المادة:</label>
-  <select id="liveSubjectSelect" style="margin-bottom:24px;width:100%;max-width:320px"></select>
-  <div class="subjects" id="liveGrid"></div>
+  <h2 class="section-title">الاشتراك</h2>
+  <a href="subscribe.html" class="card" style="max-width:320px">
+    <h3>اشترك الآن</h3>
+    <div class="meta">ادفع عبر فودافون كاش واحصل على كود الشهر</div>
+  </a>
 </section>
 
-<section class="wrap">
-  <h2 class="section-title">الاختبارات والمراجعة الشهرية</h2>
-  <label style="font-weight:700;display:block;margin-bottom:10px">اختر المادة:</label>
-  <select id="testSubjectSelect" style="margin-bottom:20px;width:100%;max-width:320px"></select>
-  <div id="testGate" class="quiz-box" style="text-align:center">
-    <p>الاختبار والمراجعة الشهرية للمشتركين فقط. اكتب كود الشهر الخاص بمادتك وصفك للدخول.</p>
-    <input type="text" id="testCode" placeholder="كود دخول الاختبار الشهري" style="width:70%;max-width:260px">
-    <button class="btn" style="padding:9px 20px;font-size:.95em" onclick="checkTestGate()">دخول</button>
-    <div class="small-note" id="testGateMsg"></div>
-  </div>
-  <div class="quiz-box hidden" id="testBox"></div>
-  <div class="small-note" style="text-align:center;margin-top:14px">تقدر تحمّل نسخة من الاختبار وترسلها بنفسك للمشتركين اللي مفيش عندهم إنترنت وقت المذاكرة.</div>
-</section>
-
-<div id="printArea"></div>
-
-<section class="wrap">
-  <h2 class="section-title">جرّب سؤال تفاعلي</h2>
-  <div class="quiz-box">
-    <div class="quiz-q">جـ س: ما ناتج (٢س + ٣ = ٩)؟</div>
-    <button class="quiz-opt" data-correct="false">س = ٤</button>
-    <button class="quiz-opt" data-correct="true">س = ٣</button>
-    <button class="quiz-opt" data-correct="false">س = ٦</button>
-    <div class="quiz-feedback" id="quizFeedback"></div>
-  </div>
-</section>
-
-<section class="wrap">
-  <div class="cta-box">
-    <h2>اشترك شهريًا وابدأ فورًا</h2>
-    <p>اختر المادة والمجموعة المناسبة، والاشتراك الشهري يشمل 8 حصص + متابعة الواجبات.</p>
-    <button class="btn" onclick="alert('في النسخة الكاملة، هيفتح هنا رابط واتساب أو صفحة دفع للاشتراك الشهري.')">تواصل للاشتراك</button>
-  </div>
-</section>
-
-<footer class="wrap">منصة نسماية — تجربة أولية</footer>
-
-<script>
-const subjectsByGrade = {
-  1: [
-    {key:"MATH", name:"رياضة أولى إعدادي", desc:"جبر وهندسة", price:"200 جنيه / شهريًا"},
-    {key:"SCI", name:"علوم أولى إعدادي", desc:"فيزياء وكيمياء وأحياء", price:"200 جنيه / شهريًا"},
-    {key:"SOC", name:"دراسات اجتماعية أولى إعدادي", desc:"", price:"200 جنيه / شهريًا"},
-  ],
-  2: [
-    {key:"MATH", name:"رياضة تانية إعدادي", desc:"جبر وهندسة", price:"200 جنيه / شهريًا"},
-    {key:"SCI", name:"علوم تانية إعدادي", desc:"فيزياء وكيمياء وأحياء", price:"200 جنيه / شهريًا"},
-    {key:"SOC", name:"دراسات اجتماعية تانية إعدادي", desc:"", price:"200 جنيه / شهريًا"},
-  ],
-  3: [
-    {key:"MATH", name:"رياضة تالتة إعدادي", desc:"جبر وهندسة", price:"200 جنيه / شهريًا"},
-    {key:"SCI", name:"علوم تالتة إعدادي", desc:"فيزياء وكيمياء وأحياء", price:"200 جنيه / شهريًا"},
-    {key:"SOC", name:"دراسات اجتماعية تالتة إعدادي", desc:"", price:"200 جنيه / شهريًا"},
-  ]
-};
-const groupsMeta = [
-  {letter:"أ", id:"A", days:"السبت + الثلاثاء"},
-  {letter:"ب", id:"B", days:"الأحد + الأربعاء"},
-  {letter:"ج", id:"C", days:"الاثنين + الخميس"},
-];
-let currentGrade = "1";
-
-function renderSubjects(grade){
-  const grid = document.getElementById('subjectsGrid');
-  grid.innerHTML = '';
-  subjectsByGrade[grade].forEach(s=>{
-    grid.innerHTML += `<div class="card"><h3>${s.name}</h3><div class="meta">${s.desc ? s.desc+' · ' : ''}حصتين أسبوعيًا</div><div class="price">${s.price}</div></div>`;
-  });
-}
-
-function renderLiveSubjectOptions(grade){
-  const sel = document.getElementById('liveSubjectSelect');
-  sel.innerHTML = '';
-  subjectsByGrade[grade].forEach(s=>{
-    const opt = document.createElement('option');
-    opt.value = s.key; opt.textContent = s.name;
-    sel.appendChild(opt);
-  });
-  renderLiveGroups(grade, sel.value);
-}
-
-function monthTag(){
-  const d = new Date();
-  return String(d.getMonth()+1).padStart(2,'0') + String(d.getFullYear()).slice(-2);
-}
-function computeCode(grade, key, groupId){
-  return `${key}-${grade}-${groupId}-${monthTag()}`;
-}
-
-function renderLiveGroups(grade, key){
-  const grid = document.getElementById('liveGrid');
-  grid.innerHTML = '';
-  groupsMeta.forEach(g=>{
-    const uid = `${grade}-${key}-${g.id}`;
-    const link = `https://meet.jit.si/MinassaNasamaya-${uid}`;
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <h3>مجموعة ${g.letter}</h3>
-      <div class="meta">${g.days} · الساعة 5:00 م</div>
-      <div id="gate-${uid}">
-        <input type="text" id="code-${uid}" placeholder="كود دخول هذا الشهر" style="width:100%;margin-bottom:8px">
-        <button class="btn" style="width:100%;padding:9px 0;font-size:.95em" onclick="checkAccess('${grade}','${key}','${g.id}')">دخول</button>
-        <div class="small-note" id="msg-${uid}"></div>
-      </div>
-      <div id="room-${uid}" class="hidden">
-        <input type="text" id="name-${uid}" placeholder="اكتب اسمك" style="width:100%;margin-bottom:8px">
-        <button class="btn" style="width:100%;padding:9px 0;font-size:.95em" onclick="joinGroup('${uid}','${link}')">انضم الآن</button>
-      </div>`;
-    grid.appendChild(card);
-  });
-}
-
-function checkAccess(grade, key, groupId){
-  const uid = `${grade}-${key}-${groupId}`;
-  const val = document.getElementById('code-'+uid).value.trim().toUpperCase();
-  const expected = computeCode(grade, key, groupId);
-  if(val === expected){
-    document.getElementById('gate-'+uid).classList.add('hidden');
-    document.getElementById('room-'+uid).classList.remove('hidden');
-  } else {
-    document.getElementById('msg-'+uid).textContent = 'كود غير صحيح لهذه المادة/المجموعة';
-  }
-}
-function joinGroup(uid, link){
-  const input = document.getElementById('name-'+uid);
-  const name = input.value.trim();
-  if(!name){ input.focus(); return; }
-  window.open(link + '#userInfo.displayName="' + encodeURIComponent(name) + '"', '_blank', 'noopener');
-}
-
-document.querySelectorAll('#gradeTabs .tab').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('#gradeTabs .tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    currentGrade = btn.dataset.grade;
-    renderSubjects(currentGrade);
-    renderLiveSubjectOptions(currentGrade);
-    renderTestSubjectOptions(currentGrade);
-  });
-});
-document.getElementById('testSubjectSelect').addEventListener('change', ()=>{
-  resetTestGate();
-});
-document.getElementById('liveSubjectSelect').addEventListener('change', (e)=>{
-  renderLiveGroups(currentGrade, e.target.value);
-});
-renderSubjects(currentGrade);
-renderLiveSubjectOptions(currentGrade);
-
-// ---- Monthly tests ----
-const testBank = {
-  MATH: [
-    {q:"إذا كان س + ٥ = ١٢، فما قيمة س؟", options:["٥","٦","٧"], correct:2},
-    {q:"مجموع زوايا المثلث يساوي؟", options:["١٨٠°","٩٠°","٣٦٠°"], correct:0},
-    {q:"ناتج (٣ × س) عندما س = ٤؟", options:["٧","١٢","٩"], correct:1},
-  ],
-  SCI: [
-    {q:"وحدة قياس القوة هي؟", options:["نيوتن","جول","وات"], correct:0},
-    {q:"الماء يتكون من ذرتين هيدروجين وذرة واحدة من؟", options:["كربون","أكسجين","نيتروجين"], correct:1},
-    {q:"أصغر وحدة بناء في جسم الكائن الحي هي؟", options:["الخلية","النسيج","العضو"], correct:0},
-  ],
-  SOC: [
-    {q:"عاصمة جمهورية مصر العربية هي؟", options:["الإسكندرية","القاهرة","الأقصر"], correct:1},
-    {q:"نهر النيل يصب في؟", options:["البحر الأحمر","البحر المتوسط","الخليج العربي"], correct:1},
-    {q:"من أقدم الحضارات المصرية القديمة؟", options:["الفرعونية","الرومانية","العثمانية"], correct:0},
-  ]
-};
-let testAnswers = {};
-
-function renderTestSubjectOptions(grade){
-  const sel = document.getElementById('testSubjectSelect');
-  sel.innerHTML = '';
-  subjectsByGrade[grade].forEach(s=>{
-    const opt = document.createElement('option');
-    opt.value = s.key; opt.dataset.name = s.name;
-    opt.textContent = s.name;
-    sel.appendChild(opt);
-  });
-  resetTestGate();
-}
-function resetTestGate(){
-  const gate = document.getElementById('testGate');
-  const box = document.getElementById('testBox');
-  if(!gate) return;
-  gate.classList.remove('hidden');
-  box.classList.add('hidden');
-  box.innerHTML = '';
-  const codeInput = document.getElementById('testCode');
-  if(codeInput) codeInput.value = '';
-  const msg = document.getElementById('testGateMsg');
-  if(msg) msg.textContent = '';
-}
-
-function renderTest(key, subjectName){
-  testAnswers = {};
-  const box = document.getElementById('testBox');
-  const qs = testBank[key];
-  let html = `<h3 style="color:var(--pine)">${subjectName} — اختبار الشهر</h3>`;
-  qs.forEach((item,qi)=>{
-    html += `<div class="quiz-q">${qi+1}) ${item.q}</div><div id="qgroup-${qi}">`;
-    item.options.forEach((opt,oi)=>{
-      html += `<button class="quiz-opt" onclick="answerTest(${qi},${oi},this)">${opt}</button>`;
-    });
-    html += `</div>`;
-  });
-  html += `<div class="quiz-feedback" id="testResult"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-      <button class="btn" style="font-size:.9em;padding:9px 20px" onclick="showTestScore('${key}')">إظهار النتيجة</button>
-      <button class="btn" style="font-size:.9em;padding:9px 20px" onclick="downloadTestPdf('${key}','${subjectName}')">تحميل PDF</button>
-    </div>`;
-  box.innerHTML = html;
-}
-function checkTestGate(){
-  const sel = document.getElementById('testSubjectSelect');
-  const key = sel.value;
-  const subjectName = sel.options[sel.selectedIndex].dataset.name;
-  const val = document.getElementById('testCode').value.trim().toUpperCase();
-  const expected = `${key}-${currentGrade}-TEST-${monthTag()}`;
-  if(val === expected){
-    document.getElementById('testGate').classList.add('hidden');
-    document.getElementById('testBox').classList.remove('hidden');
-    renderTest(key, subjectName);
-  } else {
-    document.getElementById('testGateMsg').textContent = 'كود غير صحيح لهذه المادة والصف';
-  }
-}
-function answerTest(qi, oi, btn){
-  testAnswers[qi] = oi;
-  document.querySelectorAll(`#qgroup-${qi} .quiz-opt`).forEach(b=>b.classList.remove('correct'));
-  btn.classList.add('correct');
-}
-function showTestScore(key){
-  const qs = testBank[key];
-  let score = 0;
-  qs.forEach((item,qi)=>{ if(testAnswers[qi] === item.correct) score++; });
-  document.getElementById('testResult').textContent = `نتيجتك: ${score} من ${qs.length}`;
-}
-function wrapText(ctx, text, maxWidth){
-  const words = text.split(' ');
-  let lines = [], line = '';
-  words.forEach(w=>{
-    const test = line ? line+' '+w : w;
-    if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = w; }
-    else { line = test; }
-  });
-  if(line) lines.push(line);
-  return lines;
-}
-function buildTestCanvas(qs, subjectName){
-  const width = 1000, margin = 60;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  const ctx = canvas.getContext('2d');
-  ctx.direction = 'rtl'; ctx.textAlign = 'right';
-  const blocks = [];
-  ctx.font = '700 34px Tajawal, sans-serif';
-  blocks.push({t:`منصة نسماية — اختبار ${subjectName}`, size:34, bold:true});
-  ctx.font = '400 24px Tajawal, sans-serif';
-  blocks.push({t:'الاسم: ______________________     التاريخ: __________', size:24});
-  blocks.push({t:'', size:16});
-  qs.forEach((item,qi)=>{
-    ctx.font = '700 26px Tajawal, sans-serif';
-    wrapText(ctx, `${qi+1}) ${item.q}`, width-2*margin).forEach(l=>blocks.push({t:l, size:26, bold:true}));
-    ctx.font = '400 24px Tajawal, sans-serif';
-    item.options.forEach(opt=>{
-      wrapText(ctx, '- '+opt, width-2*margin-30).forEach(l=>blocks.push({t:l, size:24, indent:true}));
-    });
-    blocks.push({t:'', size:18});
-  });
-  let y = margin;
-  const measured = blocks.map(b=>{ const lh = Math.round(b.size*1.5); y += lh; return {...b, lh}; });
-  canvas.height = Math.ceil(y + margin);
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle = '#1E2A22'; ctx.direction = 'rtl'; ctx.textAlign = 'right';
-  let cy = margin;
-  measured.forEach(b=>{
-    ctx.font = `${b.bold?'700':'400'} ${b.size}px Tajawal, sans-serif`;
-    if(b.t) ctx.fillText(b.t, b.indent ? width-margin-30 : width-margin, cy);
-    cy += b.lh;
-  });
-  return canvas;
-}
-async function downloadTestPdf(key, subjectName){
-  const qs = testBank[key];
-  if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
-  const canvas = buildTestCanvas(qs, subjectName);
-  const imgData = canvas.toDataURL('image/png');
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({unit:'pt', format:[canvas.width*0.75, canvas.height*0.75]});
-  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width*0.75, canvas.height*0.75);
-  const blob = pdf.output('blob');
-  const dl = await claude.use("downloads");
-  if(dl){
-    try{ await dl.save({filename: subjectName+'-اختبار-الشهر.pdf', data: blob}); }
-    catch(e){ console.error(e); }
-  }
-}
-
-renderTestSubjectOptions(currentGrade);
-
-document.querySelectorAll('.quiz-opt').forEach(opt=>{
-  opt.addEventListener('click', ()=>{
-    const feedback = document.getElementById('quizFeedback');
-    document.querySelectorAll('.quiz-opt').forEach(o=>o.disabled=true);
-    if(opt.dataset.correct === 'true'){
-      opt.classList.add('correct');
-      feedback.textContent = 'إجابة صحيحة! 🎉';
-    } else {
-      opt.classList.add('wrong');
-      feedback.textContent = 'إجابة غير صحيحة، الحل الصحيح: س = ٣';
-      document.querySelectorAll('.quiz-opt').forEach(o=>{ if(o.dataset.correct==='true') o.classList.add('correct'); });
-    }
-  });
-});
-</script>
+<footer class="wrap">منصة نسماية</footer>
 </body>
 </html>
