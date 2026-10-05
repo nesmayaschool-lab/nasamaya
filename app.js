@@ -204,7 +204,7 @@ function renderItemQuiz(id){
   d.questions.forEach((item,qi)=>{
     html += `<div style="font-weight:700;margin:10px 0 6px">${qi+1}) ${esc(item.q)}</div><div id="iq-${id}-${qi}">`;
     item.options.forEach((opt,oi)=>{
-      html += `<button class="quiz-opt" onclick="answerItemQuiz('${id}',${qi},${oi},this)">${esc(opt)}</button>`;
+      html += `<button class="quiz-opt" onclick="answerItemQuiz('${id}',${qi},${oi},this,${item.correct})">${esc(opt)}</button>`;
     });
     html += `</div>`;
   });
@@ -212,10 +212,16 @@ function renderItemQuiz(id){
     <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="showItemScore('${id}')">إظهار النتيجة</button>`;
   el.innerHTML = html;
 }
-function answerItemQuiz(id, qi, oi, btn){
+function answerItemQuiz(id, qi, oi, btn, correctIndex){
   itemAnswers[id][qi] = oi;
-  document.querySelectorAll(`#iq-${id}-${qi} .quiz-opt`).forEach(b=>b.classList.remove('correct'));
-  btn.classList.add('correct');
+  const group = document.querySelectorAll(`#iq-${id}-${qi} .quiz-opt`);
+  group.forEach(b=>{ b.classList.remove('correct','wrong'); b.disabled = true; });
+  if(oi === correctIndex){
+    btn.classList.add('correct');
+  } else {
+    btn.classList.add('wrong');
+    group[correctIndex].classList.add('correct');
+  }
 }
 function showItemScore(id){
   const d = materialsCache[id];
@@ -258,7 +264,7 @@ function renderTest(key){
   qs.forEach((item,qi)=>{
     html += `<div style="font-weight:700;margin:12px 0 8px">${qi+1}) ${esc(item.q)}</div><div id="qgroup-${qi}">`;
     item.options.forEach((opt,oi)=>{
-      html += `<button class="quiz-opt" onclick="answerTest(${qi},${oi},this)">${esc(opt)}</button>`;
+      html += `<button class="quiz-opt" onclick="answerTest(${qi},${oi},this,${item.correct})">${esc(opt)}</button>`;
     });
     html += `</div>`;
   });
@@ -266,10 +272,16 @@ function renderTest(key){
     <button class="btn" style="font-size:.9em" onclick="showTestScore('${key}')">إظهار النتيجة</button>`;
   box.innerHTML = html;
 }
-function answerTest(qi, oi, btn){
+function answerTest(qi, oi, btn, correctIndex){
   testAnswers[qi] = oi;
-  document.querySelectorAll(`#qgroup-${qi} .quiz-opt`).forEach(b=>b.classList.remove('correct'));
-  btn.classList.add('correct');
+  const group = document.querySelectorAll(`#qgroup-${qi} .quiz-opt`);
+  group.forEach(b=>{ b.classList.remove('correct','wrong'); b.disabled = true; });
+  if(oi === correctIndex){
+    btn.classList.add('correct');
+  } else {
+    btn.classList.add('wrong');
+    group[correctIndex].classList.add('correct');
+  }
 }
 function showTestScore(key){
   const qs = getQuestions(key);
