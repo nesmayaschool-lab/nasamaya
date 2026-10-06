@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منصة نسماية - دروس أونلاين للمرحلتين الابتدائية والإعدادية</title>
+<meta name="description" content="منصة نسماية لدروس أونلاين تفاعلية للمرحلة الابتدائية والإعدادية: حصص مباشرة، اختبارات ومراجعات شهرية، ومتابعة مستمرة.">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<header><div class="wrap" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  <a href="index.html" class="brand">
+    <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#2EC4B6"/><stop offset="100%" stop-color="#1B9AAA"/>
+      </linearGradient></defs>
+      <circle cx="32" cy="32" r="30" fill="url(#g1)"/>
+      <path d="M14 26c6-6 12 6 18 0s12-6 18 0" stroke="#D6249F" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M14 36c6-6 12 6 18 0s12-6 18 0" stroke="#FF6B6B" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    منصة نسماية
+  </a>
+  <span id="headerAuth"></span>
+</div></header>
+
+<div class="hero wrap">
+  <svg viewBox="0 0 600 220" style="width:100%;max-width:520px;height:auto;margin:0 auto 10px;display:block" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#8FD3F4"/><stop offset="100%" stop-color="#A6E3B8"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="600" height="220" rx="24" fill="url(#sky)"/>
+    <circle cx="500" cy="55" r="34" fill="#FFD166" opacity=".9"/>
+    <path d="M40 170c40-50 80-50 120 0s80 50 120 0 80-50 120 0 80 50 120 0" stroke="#2EC4B6" stroke-width="6" fill="none" stroke-linecap="round" opacity=".55"/>
+    <path d="M30 190c40-40 80-40 120 0s80 40 120 0 80-40 120 0 80 40 120 0" stroke="#D6249F" stroke-width="6" fill="none" stroke-linecap="round" opacity=".5"/>
+    <g transform="translate(80,90)">
+      <rect x="0" y="30" width="90" height="60" rx="6" fill="#FF8FAE"/>
+      <rect x="0" y="30" width="45" height="60" rx="6" fill="#FFB3C6"/>
+      <line x1="45" y1="30" x2="45" y2="90" stroke="#C2185B" stroke-width="2"/>
+      <path d="M0 30c20-18 70-18 90 0" stroke="#C2185B" stroke-width="4" fill="none"/>
+    </g>
+    <g transform="translate(230,70)">
+      <polygon points="60,0 120,22 60,44 0,22" fill="#6FCF97"/>
+      <polygon points="60,22 120,44 60,66 0,44" fill="#3FA86B" opacity=".8"/>
+      <line x1="112" y1="26" x2="112" y2="60" stroke="#2E7D4F" stroke-width="3"/>
+      <circle cx="112" cy="64" r="4" fill="#2E7D4F"/>
+    </g>
+    <g transform="translate(400,110)">
+      <rect x="0" y="0" width="14" height="70" rx="4" fill="#FFD166"/>
+      <polygon points="7,0 14,14 0,14" fill="#FF6B6B"/>
+    </g>
+    <circle cx="520" cy="150" r="10" fill="#2EC4B6" opacity=".8"/>
+    <circle cx="545" cy="130" r="6" fill="#D6249F" opacity=".8"/>
+  </svg>
+  <h1>دروس أونلاين تفاعلية لكل المراحل</h1>
+  <p>حصص مباشرة، اختبارات ومراجعات شهرية، وأسئلة تفاعلية — للمرحلتين الابتدائية والإعدادية.</p>
+</div>
+
+<div class="wrap" id="dashboardArea">جارِ التحميل...</div>
+
+<section class="wrap">
+  <h2 class="section-title">الاشتراك</h2>
+  <a href="subscribe.html" class="card" style="max-width:320px">
+    <h3>اشترك الآن</h3>
+    <div class="meta">ادفع عبر فودافون كاش واحصل على تفعيل المادة</div>
+  </a>
+</section>
+
+<footer class="wrap">منصة نسماية</footer>
+
+<script src="app.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+function subjectCardsHtml(stage, grade){
+  const subs = CURRICULUM[stage][grade] || [];
+  let html = '';
+  subs.forEach(key=>{
+    html += `<a href="subject-live.html?subject=${key}" class="card">
+      <h3>${SUBJECT_LABELS[key]}</h3>
+      <div class="meta">البث المباشر · الاختبارات والمراجعات</div>
+    </a>`;
+  });
+  return html || '<p class="small-note">لا توجد مواد لهذا الصف بعد.</p>';
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  const headerAuth = document.getElementById('headerAuth');
+  const area = document.getElementById('dashboardArea');
+  if(!user){
+    headerAuth.innerHTML = `<a href="login.html" class="btn" style="padding:8px 18px;font-size:.9em">تسجيل الدخول / حساب جديد</a>`;
+    area.innerHTML = `
+      <h2 class="section-title">التعليم الابتدائي</h2>
+      <p class="small-note">6 صفوف من الأول حتى السادس — سجّل دخولك لتشوف موادك.</p>
+      <h2 class="section-title">التعليم الإعدادي</h2>
+      <p class="small-note">3 صفوف من الأول حتى الثالث — سجّل دخولك لتشوف موادك.</p>
+      <div class="quiz-box" style="text-align:center;margin-top:10px">
+        <p>سجّل دخولك أو اعمل حساب جديد لتشوف مواد صفّك وتدخل حصصك.</p>
+        <a class="btn" href="login.html">تسجيل الدخول / حساب جديد</a>
+      </div>`;
+    return;
+  }
+  headerAuth.innerHTML = `<button class="btn" style="padding:8px 18px;font-size:.9em;background:#888" onclick="firebase.auth().signOut().then(()=>location.reload())">تسجيل الخروج</button>`;
+  const doc = await db.collection('students').doc(user.uid).get();
+  if(!doc.exists){ area.innerHTML = '<p>حدث خطأ في بيانات حسابك.</p>'; return; }
+  const student = doc.data();
+  const isAdmin = user.email === "nesmayaschool@gmail.com";
+  let html = `<h2 class="section-title">موادك — ${GRADE_LABELS[student.stage][student.grade]}</h2>
+    <div class="grid">${subjectCardsHtml(student.stage, student.grade)}</div>`;
+  if(isAdmin){
+    html += `<h2 class="section-title" style="margin-top:30px">تصفّح كأدمن</h2>
+      <div class="row2" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <select id="browseStage" onchange="updateBrowseGrades()" style="max-width:220px"></select>
+        <select id="browseGrade" onchange="renderBrowseSubjects()" style="max-width:220px"></select>
+      </div>
+      <div class="grid" id="browseGrid"></div>`;
+  }
+  area.innerHTML = html;
+  if(isAdmin){
+    const stageSel = document.getElementById('browseStage');
+    Object.keys(STAGE_LABELS).forEach(s=>{
+      const o = document.createElement('option'); o.value = s; o.textContent = STAGE_LABELS[s]; stageSel.appendChild(o);
+    });
+    updateBrowseGrades();
+  }
+});
+
+function updateBrowseGrades(){
+  const stage = document.getElementById('browseStage').value;
+  const gradeSel = document.getElementById('browseGrade');
+  gradeSel.innerHTML = '';
+  Object.keys(GRADE_LABELS[stage]).forEach(g=>{
+    const o = document.createElement('option'); o.value = g; o.textContent = GRADE_LABELS[stage][g]; gradeSel.appendChild(o);
+  });
+  renderBrowseSubjects();
+}
+function renderBrowseSubjects(){
+  const stage = document.getElementById('browseStage').value;
+  const grade = document.getElementById('browseGrade').value;
+  document.getElementById('browseGrid').innerHTML = subjectCardsHtml(stage, grade);
+}
+</script>
+</body>
+</html>

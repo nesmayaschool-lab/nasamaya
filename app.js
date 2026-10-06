@@ -1,16 +1,7 @@
-const groupsMeta = [
-  {letter:"أ", id:"A", days:"السبت + الثلاثاء", time:"1:00 م"},
-  {letter:"ب", id:"B", days:"الأحد + الأربعاء", time:"1:00 م"},
-  {letter:"ج", id:"C", days:"الاثنين + الخميس", time:"1:00 م"},
-  {letter:"د", id:"D", days:"السبت + الثلاثاء", time:"4:00 م"},
-  {letter:"هـ", id:"E", days:"الأحد + الأربعاء", time:"4:00 م"},
-];
-const GRADE_LABELS = {"1":"أولى إعدادي","2":"تانية إعدادي","3":"تالتة إعدادي"};
-const SUBJECT_LABELS = {MATH:"رياضة", SCI:"علوم", SOC:"دراسات اجتماعية"};
-const LIVE_PAGES = {MATH:"math.html", SCI:"science.html", SOC:"social.html"};
-const EXAMS_PAGES = {MATH:"math-exams.html", SCI:"science-exams.html", SOC:"social-exams.html"};
-const KIND_LABELS = {exam:"اختبار", review:"مراجعة", weekly:"تدريب أسبوعي"};
+const GROUP_COUNT = 6;
 const ADMIN_EMAIL = "nesmayaschool@gmail.com";
+const KIND_LABELS = {exam:"اختبار", review:"مراجعة", weekly:"تدريب أسبوعي"};
+let currentStage = 'prep';
 let currentGrade = "1";
 let currentUser = null;
 let currentStudent = null;
@@ -20,6 +11,7 @@ let dbGlobal = null;
 let materialsCache = {};
 
 function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function comboId(subjectKey){ return `${subjectKey}_${currentStage}_${currentGrade}`; }
 
 async function saveFile(filename, blob){
   const a = document.createElement('a');
@@ -30,10 +22,16 @@ async function saveFile(filename, blob){
   document.body.removeChild(a);
 }
 
+function getSubjectFromUrl(){
+  return new URLSearchParams(location.search).get('subject');
+}
+function liveUrl(subjectKey){ return `subject-live.html?subject=${subjectKey}`; }
+function examsUrl(subjectKey){ return `subject-exams.html?subject=${subjectKey}`; }
+
 // ---- Firebase-based access control ----
-function initSubjectAccess(subjectKey, mode){
+function initSubjectAccess(mode){
   pageMode = mode || 'live';
-  pageSubject = subjectKey;
+  pageSubject = getSubjectFromUrl();
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -41,11 +39,15 @@ function initSubjectAccess(subjectKey, mode){
   auth.onAuthStateChanged(async (user)=>{
     const authArea = document.getElementById('authArea');
     const contentArea = document.getElementById('contentArea');
+    if(!pageSubject || !SUBJECT_LABELS[pageSubject]){
+      authArea.innerHTML = `<div class="quiz-box" style="text-align:center"><p>مادة غير معروفة.</p><a class="btn" href="index.html">الرئيسية</a></div>`;
+      return;
+    }
     if(!user){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center">
         <p>لازم تسجّل دخول أو تعمل حساب جديد عشان تشوف المحتوى.</p>
-        <a class="btn" href="login.html?next=${location.pathname.split('/').pop()}">تسجيل الدخول / حساب جديد</a>
+        <a class="btn" href="login.html?next=${encodeURIComponent(location.pathname.split('/').pop()+location.search)}">تسجيل الدخول / حساب جديد</a>
       </div>`;
       return;
     }
@@ -56,29 +58,68 @@ function initSubjectAccess(subjectKey, mode){
       return;
     }
     currentStudent = doc.data();
+    currentStage = currentStudent.stage || 'prep';
     currentGrade = currentStudent.grade || "1";
     const isAdmin = user.email === ADMIN_EMAIL;
-    const active = isAdmin || (currentStudent.subjects && currentStudent.subjects[subjectKey]);
+    const subjectInCurriculum = (CURRICULUM[currentStage][currentGrade] || []).includes(pageSubject);
+    if(!subjectInCurriculum && !isAdmin){
+      contentArea.classList.add('hidden');
+      authArea.innerHTML = `<div class="quiz-box" style="text-align:center"><p>هذه المادة ليست ضمن مواد صفّك.</p><a class="btn" href="index.html">الرئيسية</a></div>`;
+      return;
+    }
+    const active = isAdmin || (currentStudent.subjects && currentStudent.subjects[pageSubject]);
     if(!active){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center">
-        <p>مرحبًا ${esc(currentStudent.name)}! اشتراكك في هذه المادة غير مفعّل بعد.</p>
+        <p>مرحبًا ${esc(currentStudent.name)}! اشتراكك في مادة ${SUBJECT_LABELS[pageSubject]} غير مفعّل بعد.</p>
         <p class="small-note">ادفع عبر فودافون كاش وابعت لقطة الدفع على واتساب ليتم تفعيل المادة لحسابك.</p>
         <a class="btn" href="subscribe.html">صفحة الاشتراك</a>
         <br><br><button class="btn" style="background:#888" onclick="firebase.auth().signOut().then(()=>location.reload())">تسجيل الخروج</button>
       </div>`;
       return;
     }
-    const adminSwitch = isAdmin ? `<div style="margin:10px 0"><strong>معاينة الأدمن:</strong>
-      <select onchange="changeAdminGrade(this.value)" style="margin-right:8px">
-        <option value="1">أولى إعدادي</option><option value="2">تانية إعدادي</option><option value="3">تالتة إعدادي</option>
-      </select></div>` : '';
-    authArea.innerHTML = `<div class="small-note">مرحبًا ${esc(currentStudent.name)} — <span id="gradeLabel">${GRADE_LABELS[currentGrade]}</span>
+    let adminSwitch = '';
+    if(isAdmin){
+      let stageOpts = Object.keys(STAGE_LABELS).map(s=>`<option value="${s}" ${s===currentStage?'selected':''}>${STAGE_LABELS[s]}</option>`).join('');
+      adminSwitch = `<div style="margin:10px 0"><strong>معاينة الأدمن:</strong>
+        <select id="adminStageSel" onchange="changeAdminStage(this.value)" style="margin-right:8px;width:auto;display:inline-block">${stageOpts}</select>
+        <select id="adminGradeSel" onchange="changeAdminGrade(this.value)" style="margin-right:8px;width:auto;display:inline-block"></select></div>`;
+    }
+    authArea.innerHTML = `<div class="small-note">مرحبًا ${esc(currentStudent.name)} — <span id="gradeLabel">${GRADE_LABELS[currentStage][currentGrade]}</span>
       <button class="btn" style="background:#888;padding:6px 14px;font-size:.8em;margin-right:10px" onclick="firebase.auth().signOut().then(()=>location.reload())">خروج</button></div>${adminSwitch}`;
+    if(isAdmin) populateAdminGradeSel();
     contentArea.classList.remove('hidden');
     renderSubNav();
     renderPage();
+    renderPrice();
   });
+}
+
+function populateAdminGradeSel(){
+  const sel = document.getElementById('adminGradeSel');
+  sel.innerHTML = '';
+  Object.keys(GRADE_LABELS[currentStage]).forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = GRADE_LABELS[currentStage][g];
+    if(g === currentGrade) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+function changeAdminStage(s){
+  currentStage = s;
+  currentGrade = Object.keys(GRADE_LABELS[s])[0];
+  populateAdminGradeSel();
+  afterAdminGradeChange();
+}
+function changeAdminGrade(g){
+  currentGrade = g;
+  afterAdminGradeChange();
+}
+function afterAdminGradeChange(){
+  const label = document.getElementById('gradeLabel');
+  if(label) label.textContent = GRADE_LABELS[currentStage][currentGrade];
+  renderPage();
+  renderPrice();
 }
 
 function renderSubNav(){
@@ -92,9 +133,19 @@ function renderSubNav(){
   }
   const live = pageMode === 'live';
   nav.innerHTML = `<div class="grade-tabs" style="justify-content:flex-start;margin:0 0 10px">
-    <a class="tab ${live?'active':''}" href="${LIVE_PAGES[pageSubject]}" style="text-decoration:none;display:inline-block">البث المباشر</a>
-    <a class="tab ${live?'':'active'}" href="${EXAMS_PAGES[pageSubject]}" style="text-decoration:none;display:inline-block">الاختبارات والمراجعات</a>
+    <a class="tab ${live?'active':''}" href="${liveUrl(pageSubject)}" style="text-decoration:none;display:inline-block">البث المباشر</a>
+    <a class="tab ${live?'':'active'}" href="${examsUrl(pageSubject)}" style="text-decoration:none;display:inline-block">الاختبارات والمراجعات</a>
   </div>`;
+}
+
+async function renderPrice(){
+  const box = document.getElementById('priceBox');
+  if(!box) return;
+  try{
+    const doc = await dbGlobal.collection('subjectPrices').doc(comboId(pageSubject)).get();
+    const price = doc.exists ? doc.data().price : null;
+    box.textContent = price ? `سعر الاشتراك الشهري: ${esc(String(price))} جنيه` : '';
+  }catch(e){ box.textContent = ''; }
 }
 
 function renderPage(){
@@ -103,33 +154,33 @@ function renderPage(){
     renderTest(pageSubject);
   } else {
     renderLiveGroups(pageSubject);
-    const old = document.getElementById('testBox');
-    if(old){ const sec = old.closest('section'); if(sec) sec.remove(); }
   }
 }
-function changeAdminGrade(g){
-  currentGrade = g;
-  const label = document.getElementById('gradeLabel');
-  if(label) label.textContent = GRADE_LABELS[g];
-  renderPage();
-}
 
-// ---- Live groups ----
-function renderLiveGroups(subjectKey){
+// ---- Live groups (schedule set by admin) ----
+async function renderLiveGroups(subjectKey){
   const grid = document.getElementById('liveGrid');
   if(!grid) return;
+  grid.innerHTML = '<p class="small-note">جارِ تحميل المواعيد...</p>';
+  let schedule = {};
+  try{
+    const doc = await dbGlobal.collection('groupSchedules').doc(comboId(subjectKey)).get();
+    if(doc.exists) schedule = doc.data().groups || {};
+  }catch(e){}
   grid.innerHTML = '';
-  groupsMeta.forEach(g=>{
-    const uid = `${currentGrade}-${subjectKey}-${g.id}`;
+  for(let i=1;i<=GROUP_COUNT;i++){
+    const g = schedule[i] || {};
+    const uid = `${currentStage}-${currentGrade}-${subjectKey}-${i}`;
     const link = `https://meet.jit.si/MinassaNasamaya-${uid}`;
+    const scheduleText = (g.day && g.time) ? `${esc(g.day)} · الساعة ${esc(g.time)}` : 'لم يتم تحديد الميعاد بعد';
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <h3>مجموعة ${g.letter}</h3>
-      <div class="meta">${g.days} · الساعة ${g.time}</div>
+      <h3>المجموعة ${i}</h3>
+      <div class="meta">${scheduleText}</div>
       <button class="btn" style="width:100%;padding:9px 0;font-size:.9em" onclick="joinGroup('${uid}','${link}')">انضم الآن</button>`;
     grid.appendChild(card);
-  });
+  }
   let note = document.getElementById('joinNote');
   if(!note){
     note = document.createElement('div');
@@ -150,7 +201,7 @@ async function renderMaterials(key){
   if(!box) return;
   box.innerHTML = '<p class="small-note">جارِ التحميل...</p>';
   try{
-    const snap = await dbGlobal.collection('materials').doc(key).collection('grades').doc(currentGrade)
+    const snap = await dbGlobal.collection('materials').doc(comboId(key))
       .collection('items').orderBy('createdAt','desc').get();
     if(snap.empty){
       box.innerHTML = '<p>لا توجد مراجعات أو اختبارات لصفّك حتى الآن. سيتم إضافتها قريبًا.</p>';
@@ -171,7 +222,7 @@ async function renderMaterials(key){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="toggleMaterial('${doc.id}')">عرض / إخفاء النص</button>
           <button class="btn" style="font-size:.85em;padding:8px 18px" onclick="downloadMaterialPdf('${doc.id}')">تحميل PDF</button>
-          ${hasQ ? `<button class="btn" style="font-size:.85em;padding:8px 18px;background:var(--pine);color:var(--paper)" onclick="toggleItemQuiz('${doc.id}')">حل الأسئلة التفاعلية</button>` : ''}
+          ${hasQ ? `<button class="btn" style="font-size:.85em;padding:8px 18px;background:var(--pine);color:var(--ink)" onclick="toggleItemQuiz('${doc.id}')">حل الأسئلة التفاعلية</button>` : ''}
         </div></div>`;
     });
     box.innerHTML = html;
@@ -216,12 +267,8 @@ function answerItemQuiz(id, qi, oi, btn, correctIndex){
   itemAnswers[id][qi] = oi;
   const group = document.querySelectorAll(`#iq-${id}-${qi} .quiz-opt`);
   group.forEach(b=>{ b.classList.remove('correct','wrong'); b.disabled = true; });
-  if(oi === correctIndex){
-    btn.classList.add('correct');
-  } else {
-    btn.classList.add('wrong');
-    group[correctIndex].classList.add('correct');
-  }
+  if(oi === correctIndex){ btn.classList.add('correct'); }
+  else { btn.classList.add('wrong'); group[correctIndex].classList.add('correct'); }
 }
 function showItemScore(id){
   const d = materialsCache[id];
@@ -229,25 +276,8 @@ function showItemScore(id){
   d.questions.forEach((item,qi)=>{ if(itemAnswers[id][qi] === item.correct) score++; });
   document.getElementById('iqResult-'+id).textContent = `نتيجتك: ${score} من ${d.questions.length}`;
 }
-async function downloadMaterialPdf(id){
-  const d = materialsCache[id];
-  if(!d) return;
-  if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
-  const probe = document.createElement('canvas').getContext('2d');
-  probe.font = '400 24px Tajawal, sans-serif';
-  const blocks = [];
-  String(d.body).split('\n').forEach(par=>{
-    if(par.trim() === ''){ blocks.push({t:'', size:24}); return; }
-    wrapText(probe, par, 860).forEach(l=>blocks.push({t:l, size:24}));
-  });
-  const title = `منصة نسماية — ${SUBJECT_LABELS[pageSubject]} — ${GRADE_LABELS[currentGrade]}`;
-  const sub = `${KIND_LABELS[d.kind]||''}: ${d.title}`;
-  const pages = pagedCanvases(title, [{t:sub, size:28, bold:true}, {t:'', size:12}, ...blocks]);
-  const blob = pagesToPdfBlob(pages);
-  await saveFile(`${KIND_LABELS[d.kind]||'ملف'}-${d.title}.pdf`, blob);
-}
 
-// ---- Interactive monthly quiz (optional, from data.js) ----
+// ---- Optional quick quiz from data.js (legacy, generic subjects only) ----
 let testAnswers = {};
 function getQuestions(key){
   return (typeof testBank !== 'undefined' && testBank[key] && testBank[key][currentGrade]) || [];
@@ -260,7 +290,7 @@ function renderTest(key){
   const qs = getQuestions(key);
   if(!qs.length){ if(sec) sec.classList.add('hidden'); return; }
   if(sec) sec.classList.remove('hidden');
-  let html = `<h3 style="color:var(--pine)">${SUBJECT_LABELS[key]} — ${GRADE_LABELS[currentGrade]}</h3>
+  let html = `<h3 style="color:var(--pine)">${SUBJECT_LABELS[key]} — ${GRADE_LABELS[currentStage][currentGrade]}</h3>
     <p class="small-note">بعد اختيار إجابة: <strong>اللون الأخضر = إجابة صحيحة</strong>، <strong>اللون الفوشيا = إجابة خاطئة</strong>.</p>`;
   qs.forEach((item,qi)=>{
     html += `<div style="font-weight:700;margin:12px 0 8px">${qi+1}) ${esc(item.q)}</div><div id="qgroup-${qi}">`;
@@ -277,12 +307,8 @@ function answerTest(qi, oi, btn, correctIndex){
   testAnswers[qi] = oi;
   const group = document.querySelectorAll(`#qgroup-${qi} .quiz-opt`);
   group.forEach(b=>{ b.classList.remove('correct','wrong'); b.disabled = true; });
-  if(oi === correctIndex){
-    btn.classList.add('correct');
-  } else {
-    btn.classList.add('wrong');
-    group[correctIndex].classList.add('correct');
-  }
+  if(oi === correctIndex){ btn.classList.add('correct'); }
+  else { btn.classList.add('wrong'); group[correctIndex].classList.add('correct'); }
 }
 function showTestScore(key){
   const qs = getQuestions(key);
@@ -291,7 +317,7 @@ function showTestScore(key){
   document.getElementById('testResult').textContent = `نتيجتك: ${score} من ${qs.length}`;
 }
 
-// ---- PDF helpers (multi-page A4-like) ----
+// ---- PDF helpers (multi-page) ----
 function wrapText(ctx, text, maxWidth){
   const words = text.split(' ');
   let lines = [], line = '';
@@ -336,4 +362,21 @@ function pagesToPdfBlob(pages){
     pdf.addImage(cv.toDataURL('image/png'), 'PNG', 0, 0, w, h);
   });
   return pdf.output('blob');
+}
+async function downloadMaterialPdf(id){
+  const d = materialsCache[id];
+  if(!d) return;
+  if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = '400 24px Tajawal, sans-serif';
+  const blocks = [];
+  String(d.body).split('\n').forEach(par=>{
+    if(par.trim() === ''){ blocks.push({t:'', size:24}); return; }
+    wrapText(probe, par, 860).forEach(l=>blocks.push({t:l, size:24}));
+  });
+  const title = `منصة نسماية — ${SUBJECT_LABELS[pageSubject]} — ${GRADE_LABELS[currentStage][currentGrade]}`;
+  const sub = `${KIND_LABELS[d.kind]||''}: ${d.title}`;
+  const pages = pagedCanvases(title, [{t:sub, size:28, bold:true}, {t:'', size:12}, ...blocks]);
+  const blob = pagesToPdfBlob(pages);
+  await saveFile(`${KIND_LABELS[d.kind]||'ملف'}-${d.title}.pdf`, blob);
 }

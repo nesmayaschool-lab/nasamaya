@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>المجموعات والأسعار - منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:8px;background:#fff;color:var(--ink)}
+.card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row2{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row2 > div{flex:1;min-width:140px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+<div class="wrap">
+  <h1>مواعيد المجموعات وسعر المادة</h1>
+  <p class="small-note">اختر المرحلة والصف والمادة، حدّد السعر ومواعيد المجموعات الست، وهتظهر للطالب فورًا بعد الحفظ.</p>
+  <div id="area">جارِ التحقق من الدخول...</div>
+</div>
+<footer class="wrap">منصة نسماية</footer>
+
+<script>
+const ADMIN_EMAIL = "nesmayaschool@gmail.com";
+const GROUP_COUNT = 6;
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+auth.onAuthStateChanged(async (user)=>{
+  const area = document.getElementById('area');
+  if(!user){
+    area.innerHTML = `<p>لازم تسجّل دخول أولاً بحساب الأدمن.</p><a class="btn" href="login.html?next=admin-groups.html">تسجيل الدخول</a>`;
+    return;
+  }
+  if(user.email !== ADMIN_EMAIL){
+    area.innerHTML = `<p>هذا الحساب غير مصرح له بالدخول لهذه الصفحة.</p>`;
+    return;
+  }
+  renderForm();
+});
+
+function renderForm(){
+  const area = document.getElementById('area');
+  let stageOpts = Object.keys(STAGE_LABELS).map(s=>`<option value="${s}">${STAGE_LABELS[s]}</option>`).join('');
+  area.innerHTML = `
+    <div class="card2">
+      <div class="row2">
+        <div><label>المرحلة</label><select id="stageSel" onchange="updateGrades()">${stageOpts}</select></div>
+        <div><label>الصف</label><select id="gradeSel" onchange="updateSubjects()"></select></div>
+        <div><label>المادة</label><select id="subjSel" onchange="loadAll()"></select></div>
+      </div>
+    </div>
+    <div id="priceArea"></div>
+    <div id="groupsArea">جارِ التحميل...</div>
+  `;
+  updateGrades();
+}
+function updateGrades(){
+  const stage = document.getElementById('stageSel').value;
+  const gradeSel = document.getElementById('gradeSel');
+  gradeSel.innerHTML = '';
+  Object.keys(GRADE_LABELS[stage]).forEach(g=>{
+    const o = document.createElement('option'); o.value = g; o.textContent = GRADE_LABELS[stage][g]; gradeSel.appendChild(o);
+  });
+  updateSubjects();
+}
+function updateSubjects(){
+  const stage = document.getElementById('stageSel').value;
+  const grade = document.getElementById('gradeSel').value;
+  const subjSel = document.getElementById('subjSel');
+  subjSel.innerHTML = '';
+  (CURRICULUM[stage][grade]||[]).forEach(k=>{
+    const o = document.createElement('option'); o.value = k; o.textContent = SUBJECT_LABELS[k]; subjSel.appendChild(o);
+  });
+  loadAll();
+}
+function comboId(){
+  const stage = document.getElementById('stageSel').value;
+  const grade = document.getElementById('gradeSel').value;
+  const subject = document.getElementById('subjSel').value;
+  return `${subject}_${stage}_${grade}`;
+}
+
+async function loadAll(){
+  await loadPrice();
+  await loadSchedule();
+}
+
+async function loadPrice(){
+  const id = comboId();
+  const priceArea = document.getElementById('priceArea');
+  priceArea.innerHTML = 'جارِ التحميل...';
+  const doc = await db.collection('subjectPrices').doc(id).get();
+  const price = (doc.exists && doc.data().price) || '';
+  priceArea.innerHTML = `<div class="card2">
+    <label>سعر الاشتراك الشهري لهذه المادة (جنيه)</label>
+    <input type="number" id="priceInput" value="${price}" placeholder="مثال: 200">
+    <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="savePrice()">حفظ السعر</button>
+    <span class="small-note" id="priceMsg"></span>
+  </div>`;
+}
+async function savePrice(){
+  const id = comboId();
+  const price = document.getElementById('priceInput').value.trim();
+  const msg = document.getElementById('priceMsg');
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('subjectPrices').doc(id).set({price});
+    msg.textContent = 'تم الحفظ ✓';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+
+async function loadSchedule(){
+  const id = comboId();
+  const groupsArea = document.getElementById('groupsArea');
+  groupsArea.innerHTML = 'جارِ التحميل...';
+  const doc = await db.collection('groupSchedules').doc(id).get();
+  const groups = (doc.exists && doc.data().groups) || {};
+  groupsArea.innerHTML = '';
+  for(let i=1;i<=GROUP_COUNT;i++){
+    const g = groups[i] || {day:'', time:''};
+    const card = document.createElement('div');
+    card.className = 'card2';
+    card.innerHTML = `<strong>المجموعة ${i}</strong>
+      <div class="row2" style="margin-top:8px">
+        <div><label>الأيام</label><input type="text" id="day-${i}" placeholder="مثال: السبت + الثلاثاء" value="${(g.day||'').replace(/"/g,'&quot;')}"></div>
+        <div><label>التوقيت</label><input type="text" id="time-${i}" placeholder="مثال: 4:00 م" value="${(g.time||'').replace(/"/g,'&quot;')}"></div>
+      </div>`;
+    groupsArea.appendChild(card);
+  }
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn';
+  saveBtn.textContent = 'حفظ كل المواعيد';
+  saveBtn.onclick = saveSchedule;
+  groupsArea.appendChild(saveBtn);
+  const msg = document.createElement('div');
+  msg.id = 'saveMsg';
+  msg.className = 'small-note';
+  groupsArea.appendChild(msg);
+}
+async function saveSchedule(){
+  const id = comboId();
+  const groups = {};
+  for(let i=1;i<=GROUP_COUNT;i++){
+    groups[i] = {
+      day: document.getElementById(`day-${i}`).value.trim(),
+      time: document.getElementById(`time-${i}`).value.trim()
+    };
+  }
+  const msg = document.getElementById('saveMsg');
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('groupSchedules').doc(id).set({groups});
+    msg.textContent = 'تم الحفظ بنجاح ✓ هيظهر للطلاب فورًا.';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+</script>
+</body>
+</html>
