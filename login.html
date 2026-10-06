@@ -10,12 +10,13 @@
 input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:10px;background:#fff;color:var(--ink)}
 .tabs2{display:flex;gap:8px;margin-bottom:16px}
 .tab2{flex:1;padding:10px;border:2px solid var(--pine);border-radius:8px;background:transparent;color:var(--pine);font-weight:700;cursor:pointer;font-family:inherit}
-.tab2.active{background:var(--pine);color:var(--paper)}
+.tab2.active{background:var(--pine);color:var(--ink)}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="config.js"></script>
 </head>
 <body>
 <header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
@@ -34,11 +35,13 @@ input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6
 
   <div id="signupForm" class="hidden">
     <input type="text" id="suName" placeholder="اسم الطالب كاملاً">
-    <select id="suGrade">
-      <option value="1">أولى إعدادي</option>
-      <option value="2">تانية إعدادي</option>
-      <option value="3">تالتة إعدادي</option>
+    <label>المرحلة</label>
+    <select id="suStage" onchange="populateGrades()">
+      <option value="primary">التعليم الابتدائي</option>
+      <option value="prep">التعليم الإعدادي</option>
     </select>
+    <label>الصف</label>
+    <select id="suGrade"></select>
     <input type="email" id="suEmail" placeholder="البريد الإلكتروني">
     <input type="password" id="suPass" placeholder="كلمة سر (6 أحرف على الأقل)">
     <button class="btn" style="width:100%" onclick="doSignup()">إنشاء الحساب</button>
@@ -52,6 +55,18 @@ input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+function populateGrades(){
+  const stage = document.getElementById('suStage').value;
+  const sel = document.getElementById('suGrade');
+  sel.innerHTML = '';
+  Object.keys(GRADE_LABELS[stage]).forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = GRADE_LABELS[stage][g];
+    sel.appendChild(opt);
+  });
+}
+populateGrades();
 
 function showTab(which){
   document.getElementById('tabLogin').classList.toggle('active', which==='login');
@@ -80,6 +95,7 @@ async function doLogin(){
 
 async function doSignup(){
   const name = document.getElementById('suName').value.trim();
+  const stage = document.getElementById('suStage').value;
   const grade = document.getElementById('suGrade').value;
   const email = document.getElementById('suEmail').value.trim();
   const pass = document.getElementById('suPass').value;
@@ -88,12 +104,15 @@ async function doSignup(){
     msg.textContent = 'من فضلك املأ كل البيانات (كلمة السر 6 أحرف على الأقل)';
     return;
   }
+  const subjects = {};
+  ALL_SUBJECT_KEYS.forEach(k=> subjects[k] = false);
   try{
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await db.collection('students').doc(cred.user.uid).set({
       name: name,
+      stage: stage,
       grade: grade,
-      subjects: {MATH:false, SCI:false, SOC:false},
+      subjects: subjects,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     window.location.href = redirectTarget();
