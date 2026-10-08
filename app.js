@@ -405,4 +405,4 @@ async function downloadMaterialPdf(id){
   const pages = pagedCanvases(title, [{t:sub, size:28, bold:true}, {t:'', size:12}, ...blocks]);
   const blob = pagesToPdfBlob(pages);
   await saveFile(`${KIND_LABELS[d.kind]||'ملف'}-${d.title}.pdf`, blob);
-        }
+}
