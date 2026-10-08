@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://meet.jit.si/external_api.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -22,6 +23,8 @@
     <a href="index.html" class="back-link">← الرئيسية</a>
     <h2 class="section-title">الحصص المباشرة</h2>
     <div class="grid" id="liveGrid"></div>
+    <div id="meetingContainer" class="hidden" style="margin-top:16px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div>
+    <button class="btn hidden" id="leaveBtn" style="margin-top:10px;background:#B5493F;color:#fff" onclick="leaveMeeting(); this.classList.add('hidden')">مغادرة الحصة</button>
   </section>
 </div>
 <footer class="wrap">منصة نسماية</footer>
