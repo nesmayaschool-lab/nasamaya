@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="config.js"></script>
+  <script src="settings.js?v=1"></script>
 </head>
 <body>
 <header><div class="wrap" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -28,6 +29,12 @@
   </a>
   <span id="headerAuth"></span>
 </div></header>
+  <div class="wrap" id="welcomeBox" style="padding-top:18px">
+  <div class="quiz-box" style="max-width:none;text-align:center">
+    <h2 id="welcomeTitle" style="color:var(--pine);margin:0 0 6px">أهلاً بك في منصة نسماية 🌿</h2>
+    <p id="welcomeText" style="margin:0">دروس أونلاين مباشرة للمرحلتين الابتدائية والإعدادية، مع مراجعات واختبارات وأسئلة تفاعلية. سجّل حسابك واشترك وابدأ رحلتك معنا.</p>
+  </div>
+  </div>
 
 <div class="hero wrap">
   <svg viewBox="0 0 600 220" style="width:100%;max-width:520px;height:auto;margin:0 auto 10px;display:block" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -74,6 +81,14 @@
 </section>
 
 <footer class="wrap">منصة نسماية</footer>
+  <section class="wrap" id="ratingSection">
+  <h2 class="section-title">قيّم المنصة</h2>
+  <div class="quiz-box" style="max-width:none;text-align:center">
+    <div id="ratingAvg" class="small-note" style="font-size:1em;opacity:.9">جارِ تحميل التقييم...</div>
+    <div id="ratingForm"></div>
+  </div>
+  <div id="feedbackAdmin"></div>
+  </section>
 
 <script src="app.js"></script>
 <script>
@@ -154,5 +169,117 @@ function renderBrowseSubjects(){
   document.getElementById('browseGrid').innerHTML = subjectCardsHtml(stage, grade);
 }
 </script>
+  <script>
+(function(){
+  var avgBox = document.getElementById('ratingAvg');
+  var formBox = document.getElementById('ratingForm');
+  var chosen = 0;
+  var studentName = '';
+
+  function showAvg(sum, n){
+    if(!n){ avgBox.textContent = 'لسه ما فيش تقييمات. كن أول من يقيّم المنصة!'; return; }
+    avgBox.innerHTML = '<span style="font-size:1.6em;font-weight:900;color:var(--gold)">' + (sum / n).toFixed(1) +
+      '</span> من 5 ★<br><span class="small-note">حسب ' + (n >= 100 ? 'آخر ' : '') + n + ' تقييم</span>';
+  }
+
+  async function loadAvg(){
+    try{
+      var c = sessionStorage.getItem('nsm_rating');
+      if(c){
+        var o = JSON.parse(c);
+        if(Date.now() - o.t < 600000){ showAvg(o.s, o.n); return; }
+      }
+    }catch(e){}
+    try{
+      var snap = await db.collection('ratings').orderBy('updatedAt', 'desc').limit(100).get();
+      var s = 0, n = 0;
+      snap.forEach(function(d){
+        var r = d.data().rating;
+        if(typeof r === 'number'){ s += r; n++; }
+      });
+      try{ sessionStorage.setItem('nsm_rating', JSON.stringify({t: Date.now(), s: s, n: n})); }catch(e){}
+      showAvg(s, n);
+    }catch(e){ avgBox.textContent = ''; }
+  }
+
+  function drawStars(){
+    var html = '';
+    for(var i = 1; i <= 5; i++){
+      html += '<button type="button" onclick="nsmPick(' + i + ')" style="background:none;border:none;font-size:2.2em;cursor:pointer;color:var(--gold);padding:0 4px;line-height:1">' + (i <= chosen ? '★' : '☆') + '</button>';
+    }
+    var el = document.getElementById('nsmStars');
+    if(el) el.innerHTML = html;
+  }
+  window.nsmPick = function(i){ chosen = i; drawStars(); };
+
+  function showForm(){
+    formBox.innerHTML = '<div style="margin-top:14px"><div id="nsmStars"></div>' +
+      '<textarea id="nsmComment" rows="3" maxlength="500" placeholder="رأيك في الموقع (اختياري)" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin:8px 0;background:var(--paper);color:var(--ink)"></textarea>' +
+      '<button class="btn" onclick="nsmSend()">إرسال التقييم</button>' +
+      '<div class="small-note" id="nsmMsg"></div></div>';
+    drawStars();
+  }
+
+  window.nsmSend = async function(){
+    var msg = document.getElementById('nsmMsg');
+    if(!chosen){ msg.textContent = 'اختر عدد النجوم الأول'; return; }
+    var user = auth.currentUser;
+    if(!user) return;
+    var comment = document.getElementById('nsmComment').value.trim();
+    msg.textContent = 'جارِ الإرسال...';
+    try{
+      var ts = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('ratings').doc(user.uid).set({rating: chosen, updatedAt: ts});
+      if(comment){
+        await db.collection('feedback').doc(user.uid).set({comment: comment, name: studentName, updatedAt: ts});
+      }
+      try{ sessionStorage.removeItem('nsm_rating'); }catch(e){}
+      msg.textContent = 'شكرًا لتقييمك 💚';
+      loadAvg();
+    }catch(e){ msg.textContent = 'تعذر الإرسال: ' + e.message; }
+  };
+
+  async function loadFeedback(){
+    var box = document.getElementById('feedbackAdmin');
+    try{
+      var snap = await db.collection('feedback').orderBy('updatedAt', 'desc').limit(30).get();
+      if(snap.empty){ box.innerHTML = ''; return; }
+      var html = '<h3 style="margin-top:20px">آراء الطلاب (تظهر لك أنت فقط)</h3>';
+      snap.forEach(function(d){
+        var x = d.data();
+        html += '<div class="card" style="margin-bottom:8px"><div class="meta">' + esc(x.name || 'طالب') + '</div>' + esc(x.comment) + '</div>';
+      });
+      box.innerHTML = html;
+    }catch(e){}
+  }
+
+  loadAvg();
+
+  db.collection('settings').doc('site').get().then(function(d){
+    var w = d.exists && d.data().welcome;
+    if(!w) return;
+    if(w.title) document.getElementById('welcomeTitle').textContent = w.title;
+    if(w.text) document.getElementById('welcomeText').textContent = w.text;
+  }).catch(function(){});
+
+  auth.onAuthStateChanged(async function(user){
+    if(!user){
+      formBox.innerHTML = '<p class="small-note" style="margin-top:12px">سجّل دخولك علشان تقدر تقيّم المنصة.</p><a class="btn" href="login.html">تسجيل الدخول / حساب جديد</a>';
+      return;
+    }
+    var isAdmin = user.email === 'nesmayaschool@gmail.com';
+    try{
+      var d = await db.collection('students').doc(user.uid).get();
+      if(d.exists) studentName = d.data().name || '';
+    }catch(e){}
+    try{
+      var r = await db.collection('ratings').doc(user.uid).get();
+      if(r.exists) chosen = r.data().rating || 0;
+    }catch(e){}
+    showForm();
+    if(isAdmin) loadFeedback();
+  });
+})();
+          </script>
 </body>
     </html>
