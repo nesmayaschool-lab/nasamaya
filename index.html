@@ -110,12 +110,17 @@ auth.onAuthStateChanged(async (user)=>{
     return;
   }
   headerAuth.innerHTML = `<button class="btn" style="padding:8px 18px;font-size:.9em;background:#888" onclick="firebase.auth().signOut().then(()=>location.reload())">تسجيل الخروج</button>`;
-  const doc = await db.collection('students').doc(user.uid).get();
-  if(!doc.exists){ area.innerHTML = '<p>حدث خطأ في بيانات حسابك.</p>'; return; }
-  const student = doc.data();
+    const doc = await db.collection('students').doc(user.uid).get();
   const isAdmin = user.email === "nesmayaschool@gmail.com";
-  let html = `<h2 class="section-title">موادك — ${GRADE_LABELS[student.stage][student.grade]}</h2>
-    <div class="grid">${subjectCardsHtml(student.stage, student.grade)}</div>`;
+  if(!doc.exists && !isAdmin){ area.innerHTML = '<p>حدث خطأ في بيانات حسابك.</p>'; return; }
+  const student = doc.exists ? doc.data() : {};
+  const st = (student.stage && CURRICULUM[student.stage]) ? student.stage : 'prep';
+  const gr = (student.grade && CURRICULUM[st][student.grade]) ? String(student.grade) : "1";
+  let html = '';
+  if(doc.exists){
+    html += `<h2 class="section-title">موادك — ${GRADE_LABELS[st][gr]}</h2>
+      <div class="grid">${subjectCardsHtml(st, gr)}</div>`;
+  }
   if(isAdmin){
     html += `<h2 class="section-title" style="margin-top:30px">تصفّح كأدمن</h2>
       <div class="row2" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
