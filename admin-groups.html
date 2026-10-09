@@ -11,6 +11,8 @@ input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6
 .card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
 .row2{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .row2 > div{flex:1;min-width:140px}
+.room-box{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.sbtn{font-size:.8em;padding:6px 14px;text-decoration:none;display:inline-block}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -22,7 +24,7 @@ input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6
 <header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
 <div class="wrap">
   <h1>مواعيد المجموعات وسعر المادة</h1>
-  <p class="small-note">اختر المرحلة والصف والمادة، حدّد السعر ومواعيد المجموعات الست، وهتظهر للطالب فورًا بعد الحفظ.</p>
+  <p class="small-note">اختر المرحلة والصف والمادة، حدّد السعر ومواعيد المجموعات الست، وهتظهر للطالب فورًا بعد الحفظ. وتحت كل مجموعة رابط الحصة: جدّده قبل كل حصة.</p>
   <div id="area">جارِ التحقق من الدخول...</div>
 </div>
 <footer class="wrap">منصة نسماية</footer>
@@ -33,6 +35,7 @@ const GROUP_COUNT = 6;
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+let roomNames = {};
 
 auth.onAuthStateChanged(async (user)=>{
   const area = document.getElementById('area');
@@ -118,12 +121,80 @@ async function savePrice(){
   }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
 }
 
+// ---- روابط الحصص (أسماء غرف عشوائية) ----
+function genRoom(){
+  const a = new Uint8Array(12);
+  crypto.getRandomValues(a);
+  return 'nsm' + Array.from(a, b => (b % 36).toString(36)).join('');
+}
+function renderRoom(i){
+  const box = document.getElementById('room-' + i);
+  if(!box) return;
+  const r = roomNames[i];
+  if(!r){
+    box.innerHTML = `<span class="small-note">لا يوجد رابط حصة بعد.</span>
+      <button class="btn sbtn" onclick="renewRoom(${i})">إنشاء رابط الحصة</button>`;
+    return;
+  }
+  const url = 'https://meet.jit.si/' + r;
+  box.innerHTML = `<div class="small-note" style="direction:ltr;text-align:left;word-break:break-all">${url}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <a class="btn sbtn" href="${url}" target="_blank" rel="noopener">فتح كمدرّس</a>
+      <button class="btn sbtn" onclick="copyRoom(${i})">نسخ الرابط</button>
+      <button class="btn sbtn" style="background:#B5493F;color:#fff" onclick="renewRoom(${i})">تجديد رابط الحصة</button>
+    </div>`;
+}
+async function renewRoom(i){
+  if(roomNames[i] && !confirm('تجديد الرابط هيخلي الرابط القديم لا يعمل للدخول الجديد. متأكد؟')) return;
+  const id = comboId();
+  const name = genRoom();
+  const msg = document.getElementById('saveMsg');
+  try{
+    await db.collection('rooms').doc(id).set({names: {[i]: name}}, {merge: true});
+    roomNames[i] = name;
+    renderRoom(i);
+    if(msg) msg.textContent = 'تم تجديد رابط المجموعة ' + i + ' ✓';
+  }catch(e){
+    if(msg) msg.textContent = 'خطأ: ' + e.message;
+  }
+}
+async function renewAllRooms(){
+  if(!confirm('هيتم تجديد روابط المجموعات الست. متأكد؟')) return;
+  const id = comboId();
+  const names = {};
+  for(let i=1;i<=GROUP_COUNT;i++) names[i] = genRoom();
+  const msg = document.getElementById('saveMsg');
+  try{
+    await db.collection('rooms').doc(id).set({names});
+    roomNames = names;
+    for(let i=1;i<=GROUP_COUNT;i++) renderRoom(i);
+    if(msg) msg.textContent = 'تم تجديد كل الروابط ✓';
+  }catch(e){
+    if(msg) msg.textContent = 'خطأ: ' + e.message;
+  }
+}
+async function copyRoom(i){
+  const url = 'https://meet.jit.si/' + roomNames[i];
+  const msg = document.getElementById('saveMsg');
+  try{
+    await navigator.clipboard.writeText(url);
+    if(msg) msg.textContent = 'تم نسخ رابط المجموعة ' + i + ' ✓';
+  }catch(e){
+    window.prompt('انسخ الرابط:', url);
+  }
+}
+
 async function loadSchedule(){
   const id = comboId();
   const groupsArea = document.getElementById('groupsArea');
   groupsArea.innerHTML = 'جارِ التحميل...';
   const doc = await db.collection('groupSchedules').doc(id).get();
   const groups = (doc.exists && doc.data().groups) || {};
+  roomNames = {};
+  try{
+    const rdoc = await db.collection('rooms').doc(id).get();
+    if(rdoc.exists) roomNames = rdoc.data().names || {};
+  }catch(e){}
   groupsArea.innerHTML = '';
   for(let i=1;i<=GROUP_COUNT;i++){
     const g = groups[i] || {day:'', time:''};
@@ -133,14 +204,22 @@ async function loadSchedule(){
       <div class="row2" style="margin-top:8px">
         <div><label>الأيام</label><input type="text" id="day-${i}" placeholder="مثال: السبت + الثلاثاء" value="${(g.day||'').replace(/"/g,'&quot;')}"></div>
         <div><label>التوقيت</label><input type="text" id="time-${i}" placeholder="مثال: 4:00 م" value="${(g.time||'').replace(/"/g,'&quot;')}"></div>
-      </div>`;
+      </div>
+      <div class="room-box" id="room-${i}"></div>`;
     groupsArea.appendChild(card);
+    renderRoom(i);
   }
   const saveBtn = document.createElement('button');
   saveBtn.className = 'btn';
   saveBtn.textContent = 'حفظ كل المواعيد';
   saveBtn.onclick = saveSchedule;
   groupsArea.appendChild(saveBtn);
+  const allBtn = document.createElement('button');
+  allBtn.className = 'btn';
+  allBtn.style.cssText = 'background:#B5493F;color:#fff;margin-right:8px';
+  allBtn.textContent = 'تجديد كل الروابط';
+  allBtn.onclick = renewAllRooms;
+  groupsArea.appendChild(allBtn);
   const msg = document.createElement('div');
   msg.id = 'saveMsg';
   msg.className = 'small-note';
