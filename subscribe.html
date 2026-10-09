@@ -5,24 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>الاشتراك - منصة نسماية</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+
 <div class="hero wrap">
   <h1>الاشتراك الشهري</h1>
   <p>اشتراك واحد شهريًا لكل مادة يشمل 8 حصص مباشرة + اختبارات ومراجعات شهرية.</p>
 </div>
+
 <section class="wrap">
   <a href="index.html" class="back-link">← الرئيسية</a>
   <div class="quiz-box" style="text-align:center">
-    <p>1) ادفع عبر <strong>فودافون كاش (01014379356)</strong><br>2) ابعت لقطة الدفع مع اسم الطالب والصف والمادة والمجموعة<br>3) هيوصلك كود الشهر الخاص بمادتك ومجموعتك</p>
-    <a class="btn" target="_blank" rel="noopener"
-       href="https://wa.me/201270774662?text=مرحباً%2C%20اسم%20الطالب%3A%20(اكتب%20اسمك%20كاملاً)%0Aالصف%3A%20(أولى%2Fتانية%2Fتالتة%20إعدادي)%0Aالمادة%3A%20(اسم%20المادة)%0Aالمجموعة%3A%20(أ%2Fب%2Fج%2Fد%2Fهـ)%0Aمرفق%20لقطة%20شاشة%20الدفع">
-       أرسل إثبات الدفع واتساب</a>
+    <p>
+      1) سجّل حسابك في المنصة لو معندكش حساب<br>
+      2) ادفع عبر <strong>فودافون كاش (01014379356)</strong><br>
+      3) ابعت لقطة الدفع مع اسم الطالب والمرحلة والصف والمادة والمجموعة<br>
+      4) بعد مراجعة الدفع هنفعّل لك المادة على حسابك وتظهر لك الحصص
+    </p>
+    <a id="wa" class="btn" target="_blank" rel="noopener" href="#">أرسل إثبات الدفع واتساب</a>
+    <div class="small-note" style="text-align:center;margin-top:16px">
+      سعر كل مادة بيظهر لك في صفحة المادة نفسها.
+    </div>
   </div>
-  <div class="small-note" style="text-align:center;margin-top:16px">السعر: 200 جنيه شهريًا لأي مادة ولأي صف.</div>
 </section>
+
 <footer class="wrap">منصة نسماية</footer>
+
+<script>
+  var msg = "مرحباً،\n" +
+    "اسم الطالب: (اكتب اسمك كاملاً)\n" +
+    "المرحلة: (ابتدائي / إعدادي)\n" +
+    "الصف: (أولى / تانية / تالتة ...)\n" +
+    "المادة: (اسم المادة)\n" +
+    "المجموعة: (1 إلى 6)\n" +
+    "مرفق لقطة شاشة الدفع";
+  document.getElementById("wa").href =
+    "https://wa.me/201270774662?text=" + encodeURIComponent(msg);
+</script>
 </body>
 </html>
