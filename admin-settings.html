@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>إعدادات الموقع - منصة نسماية</title>
+  <script>
+window.addEventListener('error', function(e){
+  var a = document.getElementById('area');
+  if(a) a.textContent = 'خطأ في الصفحة: ' + e.message;
+});
+window.addEventListener('unhandledrejection', function(e){
+  var a = document.getElementById('area');
+  if(a) a.textContent = 'خطأ: ' + ((e.reason && e.reason.message) || e.reason);
+});
+setTimeout(function(){
+  var a = document.getElementById('area');
+  if(a && a.textContent.indexOf('جارِ التحقق') === 0) a.textContent = 'الصفحة ما كملتش تحميل. تأكد من الإنترنت وحدّث الصفحة بالقوة.';
+}, 10000);
+  </script>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
