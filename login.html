@@ -17,7 +17,7 @@ input,select{width:100%;padding:9px;border:1px solid var(--line);border-radius:6
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="config.js"></script>
-  <script src="settings.js?v=1"></script>
+<script src="settings.js?v=1"></script>
 </head>
 <body>
 <header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
@@ -117,10 +117,31 @@ async function doSignup(){
       subjects: subjects,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    window.location.href = redirectTarget();
+    showWelcome(name);
   }catch(e){
     msg.textContent = 'خطأ: ' + (e.message || 'تعذر إنشاء الحساب');
   }
+}
+
+function showWelcome(name){
+  const first = (name || '').trim().split(' ')[0];
+  let next = redirectTarget();
+  if(!/^[A-Za-z0-9_.-]+\.html(\?[^\s"'<>]*)?$/.test(next)) next = 'index.html';
+  document.querySelector('.tabs2').classList.add('hidden');
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('signupForm').classList.add('hidden');
+  document.querySelector('h1').textContent = 'تم إنشاء حسابك 🎉';
+  const box = document.getElementById('authMsg');
+  box.className = 'quiz-box';
+  box.style.cssText = 'text-align:center;margin-top:12px;opacity:1';
+  box.innerHTML =
+    '<h2 style="color:var(--pine);margin:0 0 8px"></h2>' +
+    '<p>أنت دلوقتي جزء من أسرة منصة نسماية. نتمنى لك رحلة تعليمية ممتعة ومفيدة.</p>' +
+    '<p style="font-size:.9em;opacity:.8">الخطوة الجاية: اضغط "اشترك"، وادفع عبر فودافون كاش، وابعت لقطة الدفع على واتساب، وهنفعّل لك موادك.</p>' +
+    '<a class="btn" href="subscribe.html">اشترك في موادك</a> ' +
+    '<a class="btn" style="background:transparent;border:2px solid var(--pine);color:var(--pine);margin-top:8px" id="startLink">ابدأ التصفح</a>';
+  box.querySelector('h2').textContent = 'أهلاً بيك' + (first ? ' يا ' + first : '') + ' في منصة نسماية 🌿';
+  document.getElementById('startLink').href = next;
 }
 </script>
 </body>
