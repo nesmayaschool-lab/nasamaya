@@ -140,4 +140,64 @@ function renderForm(){
     </div>
     <div class="card2">
       <strong>معاينة</strong>
-      <div cla
+      <div class="card" style="margin:10px 0"><h3>عنوان بطاقة</h3><div class="meta">وصف قصير للمعاينة</div></div>
+      <span class="btn">زرار</span>
+    </div>
+    <button class="btn" onclick="saveColors()">حفظ الألوان للجميع</button>
+    <button class="btn" style="background:#B5493F;color:#fff;margin-right:8px" onclick="resetColors()">إعادة الألوان الأصلية</button>
+    <div class="small-note" id="msg"></div>`;
+  fillWelcome(welcome);
+}
+
+function fillWelcome(w){
+  document.getElementById('w-title').value = w.title || '';
+  document.getElementById('w-text').value = w.text || '';
+  document.getElementById('w-signup').value = w.signupText || '';
+}
+async function saveWelcome(){
+  const msg = document.getElementById('wmsg');
+  const w = {
+    title: document.getElementById('w-title').value.trim(),
+    text: document.getElementById('w-text').value.trim(),
+    signupText: document.getElementById('w-signup').value.trim()
+  };
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('settings').doc('site').set({welcome: w}, {merge: true});
+    welcome = Object.assign({}, DEFAULT_WELCOME, w);
+    msg.textContent = 'تم الحفظ ✓ هتظهر لكل الزوار.';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+
+function applyPreset(i){
+  current = Object.assign({}, PRESETS[i].c);
+  Object.keys(LABELS).forEach(k => { document.getElementById('c-' + k).value = current[k]; });
+  preview();
+}
+function setColor(k, val){
+  current[k] = val;
+  preview();
+}
+async function saveColors(){
+  const msg = document.getElementById('msg');
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('settings').doc('site').set({colors: current}, {merge: true});
+    msg.textContent = 'تم الحفظ ✓ هتظهر لكل الطلاب.';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+async function resetColors(){
+  if(!confirm('رجوع كل الألوان للأصل لكل الطلاب؟')) return;
+  const msg = document.getElementById('msg');
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('settings').doc('site').set({colors: firebase.firestore.FieldValue.delete()}, {merge: true});
+    current = Object.assign({}, DEFAULTS);
+    Object.keys(LABELS).forEach(k => { document.getElementById('c-' + k).value = current[k]; });
+    preview();
+    msg.textContent = 'تمت الإعادة للألوان الأصلية ✓';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+</script>
+</body>
+</html>
