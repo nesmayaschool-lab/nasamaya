@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>إعدادات مظهر الموقع - منصة نسماية</title>
+<title>إعدادات الموقع - منصة نسماية</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
@@ -11,6 +11,8 @@
 .crow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .crow input[type=color]{width:64px;height:40px;padding:2px;border:1px solid var(--line);border-radius:6px;background:transparent;cursor:pointer}
 .presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.wbox label{display:block;margin:8px 0 4px;font-weight:700}
+.wbox input[type=text],.wbox textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:6px;background:var(--card);color:var(--ink)}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -20,8 +22,8 @@
 <body>
 <header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
 <div class="wrap">
-  <h1>إعدادات مظهر الموقع</h1>
-  <p class="small-note">اختر لونًا أو جاهزًا، وشوف التغيير هنا فورًا، وبعدها اضغط "حفظ للجميع". الطالب يقدر يغيّر مظهره لنفسه من زرار 🎨 في أسفل الصفحة.</p>
+  <h1>إعدادات الموقع</h1>
+  <p class="small-note">رسالة الترحيب والألوان بتظهر لكل الزوار بعد الحفظ. الطالب يقدر يغيّر مظهره لنفسه من زرار 🎨 في أسفل الصفحة.</p>
   <div id="area">جارِ التحقق من الدخول...</div>
 </div>
 <footer class="wrap">منصة نسماية</footer>
@@ -29,6 +31,11 @@
 <script>
 const ADMIN_EMAIL = "nesmayaschool@gmail.com";
 const DEFAULTS = {paper:'#F6F1E4', ink:'#1E2A22', pine:'#26433A', gold:'#C98A3B', card:'#FFFFFF'};
+const DEFAULT_WELCOME = {
+  title: 'أهلاً بك في منصة نسماية 🌿',
+  text: 'دروس أونلاين مباشرة للمرحلتين الابتدائية والإعدادية، مع مراجعات واختبارات وأسئلة تفاعلية. سجّل حسابك واشترك وابدأ رحلتك معنا.',
+  signupText: 'أنت دلوقتي جزء من أسرة منصة نسماية. نتمنى لك رحلة تعليمية ممتعة ومفيدة.'
+};
 const LABELS = {
   paper:'لون خلفية الصفحة',
   ink:'لون النص',
@@ -49,6 +56,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let current = Object.assign({}, DEFAULTS);
+let welcome = Object.assign({}, DEFAULT_WELCOME);
 
 function mix(a, b, p){
   const h = x => [1,3,5].map(i => parseInt(x.substr(i,2),16));
@@ -80,7 +88,11 @@ auth.onAuthStateChanged(async (user)=>{
   }
   try{
     const doc = await db.collection('settings').doc('site').get();
-    if(doc.exists && doc.data().colors) current = Object.assign({}, DEFAULTS, doc.data().colors);
+    if(doc.exists){
+      const d = doc.data();
+      if(d.colors) current = Object.assign({}, DEFAULTS, d.colors);
+      if(d.welcome) welcome = Object.assign({}, DEFAULT_WELCOME, d.welcome);
+    }
   }catch(e){}
   renderForm();
   preview();
@@ -92,6 +104,18 @@ function renderForm(){
   const rows = Object.keys(LABELS).map(k=>`<div class="crow"><label>${LABELS[k]}</label>
       <input type="color" id="c-${k}" value="${current[k]}" oninput="setColor('${k}', this.value)"></div>`).join('');
   area.innerHTML = `
+    <div class="card2 wbox">
+      <strong>رسالة الترحيب</strong>
+      <label for="w-title">عنوان الترحيب في الصفحة الرئيسية</label>
+      <input type="text" id="w-title" maxlength="120">
+      <label for="w-text">نص الترحيب في الصفحة الرئيسية</label>
+      <textarea id="w-text" rows="4" maxlength="400"></textarea>
+      <label for="w-signup">رسالة الترحيب بعد إنشاء الحساب</label>
+      <textarea id="w-signup" rows="3" maxlength="400"></textarea>
+      <button class="btn" onclick="saveWelcome()">حفظ الترحيب</button>
+      <button class="btn" style="background:transparent;border:2px solid var(--pine);color:var(--pine);margin-right:8px" onclick="fillWelcome(DEFAULT_WELCOME)">النص الأصلي</button>
+      <div class="small-note" id="wmsg"></div>
+    </div>
     <div class="card2">
       <strong>ألوان جاهزة</strong>
       <div class="presets" style="margin-top:8px">${presetBtns}</div>
@@ -102,42 +126,4 @@ function renderForm(){
     </div>
     <div class="card2">
       <strong>معاينة</strong>
-      <div class="card" style="margin:10px 0"><h3>عنوان بطاقة</h3><div class="meta">وصف قصير للمعاينة</div></div>
-      <span class="btn">زرار</span>
-    </div>
-    <button class="btn" onclick="saveColors()">حفظ للجميع</button>
-    <button class="btn" style="background:#B5493F;color:#fff;margin-right:8px" onclick="resetColors()">إعادة الألوان الأصلية</button>
-    <div class="small-note" id="msg"></div>`;
-}
-function applyPreset(i){
-  current = Object.assign({}, PRESETS[i].c);
-  Object.keys(LABELS).forEach(k => { document.getElementById('c-' + k).value = current[k]; });
-  preview();
-}
-function setColor(k, val){
-  current[k] = val;
-  preview();
-}
-async function saveColors(){
-  const msg = document.getElementById('msg');
-  msg.textContent = 'جارِ الحفظ...';
-  try{
-    await db.collection('settings').doc('site').set({colors: current}, {merge: true});
-    msg.textContent = 'تم الحفظ ✓ هتظهر لكل الطلاب.';
-  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
-}
-async function resetColors(){
-  if(!confirm('رجوع كل الألوان للأصل لكل الطلاب؟')) return;
-  const msg = document.getElementById('msg');
-  msg.textContent = 'جارِ الحفظ...';
-  try{
-    await db.collection('settings').doc('site').set({colors: firebase.firestore.FieldValue.delete()}, {merge: true});
-    current = Object.assign({}, DEFAULTS);
-    Object.keys(LABELS).forEach(k => { document.getElementById('c-' + k).value = current[k]; });
-    preview();
-    msg.textContent = 'تمت الإعادة للألوان الأصلية ✓';
-  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
-}
-</script>
-</body>
-</html>
+      <div cla
