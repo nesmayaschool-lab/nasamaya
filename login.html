@@ -110,6 +110,7 @@ async function doSignup(){
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await db.collection('students').doc(cred.user.uid).set({
       name: name,
+      email: email,
       stage: stage,
       grade: grade,
       subjects: subjects,
