@@ -5,40 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>إدارة المشتركين - منصة نسماية</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 <style>
 .card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
 .chk-row{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
 .chk-row label{display:flex;align-items:center;gap:6px;font-weight:700}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.filters select,.filters input{width:auto;flex:1;min-width:130px}
+.stage-tag{display:inline-block;font-size:.85em;margin-top:2px}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="config.js?v=2"></script>
 </head>
 <body>
 <header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+
 <div class="wrap">
   <h1>إدارة اشتراكات الطلاب</h1>
+  <div class="filters hidden" id="filters">
+    <input type="text" id="searchBox" placeholder="ابحث باسم الطالب" oninput="render()">
+    <select id="stageFilter" onchange="render()">
+      <option value="">كل المراحل</option>
+      <option value="primary">التعليم الابتدائي</option>
+      <option value="prep">التعليم الإعدادي</option>
+    </select>
+    <select id="gradeFilter" onchange="render()">
+      <option value="">كل الصفوف</option>
+      <option value="1">الأول</option>
+      <option value="2">الثاني</option>
+      <option value="3">الثالث</option>
+      <option value="4">الرابع</option>
+      <option value="5">الخامس</option>
+      <option value="6">السادس</option>
+    </select>
+  </div>
+  <div class="small-note" id="countNote"></div>
   <div id="area">جارِ التحقق من الدخول...</div>
 </div>
+
 <footer class="wrap">منصة نسماية</footer>
 
 <script>
-const ADMIN_EMAIL = "nesmayaschool@gmail.com"; // غيّره لإيميلك الحقيقي المسجّل في تسجيل الدخول
-const SUBJECT_LABELS = {MATH:"رياضة", SCI:"علوم", SOC:"دراسات اجتماعية"};
+const ADMIN_EMAIL = "nesmayaschool@gmail.com";
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+let allStudents = [];
+
+function esc(t){
+  return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function stageOf(s){ return (s.stage && CURRICULUM[s.stage]) ? s.stage : 'prep'; }
+function gradeOf(s){ return s.grade ? String(s.grade) : '1'; }
+function subjectsFor(s){
+  const st = stageOf(s);
+  return (CURRICULUM[st] && CURRICULUM[st][gradeOf(s)]) || [];
+}
+function gradeLabel(s){
+  const st = stageOf(s), g = gradeOf(s);
+  return (GRADE_LABELS[st] && GRADE_LABELS[st][g]) || ('الصف ' + g);
+}
 
 auth.onAuthStateChanged(async (user)=>{
   const area = document.getElementById('area');
   if(!user){
-    area.innerHTML = `<p>لازم تسجّل دخول أولاً بحساب الأدمن.</p><a class="btn" href="login.html?next=admin-students.html">تسجيل الدخول</a>`;
+    area.innerHTML = '<p>لازم تسجّل دخول أولاً بحساب الأدمن.</p><a class="btn" href="login.html?next=admin-students.html">تسجيل الدخول</a>';
     return;
   }
   if(user.email !== ADMIN_EMAIL){
-    area.innerHTML = `<p>هذا الحساب غير مصرح له بالدخول لهذه الصفحة.</p>`;
+    area.innerHTML = '<p>هذا الحساب غير مصرح له بالدخول لهذه الصفحة.</p>';
     return;
   }
   loadStudents();
@@ -47,37 +86,75 @@ auth.onAuthStateChanged(async (user)=>{
 async function loadStudents(){
   const area = document.getElementById('area');
   area.innerHTML = 'جارِ تحميل قائمة الطلاب...';
-  const snap = await db.collection('students').get();
-  if(snap.empty){ area.innerHTML = 'لا يوجد طلاب مسجّلين بعد.'; return; }
-  area.innerHTML = '';
-  snap.forEach(doc=>{
-    const s = doc.data();
-    const id = doc.id;
-    const card = document.createElement('div');
-    card.className = 'card2';
-    let chks = '';
-    Object.keys(SUBJECT_LABELS).forEach(key=>{
-      const checked = s.subjects && s.subjects[key] ? 'checked' : '';
-      chks += `<label><input type="checkbox" id="${id}-${key}" ${checked}> ${SUBJECT_LABELS[key]}</label>`;
-    });
-    card.innerHTML = `<strong>${s.name}</strong> — الصف: ${s.grade}
-      <div class="chk-row">${chks}</div>
-      <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="saveStudent('${id}')">حفظ</button>
-      <span class="small-note" id="msg-${id}"></span>`;
-    area.appendChild(card);
+  try{
+    const snap = await db.collection('students').get();
+    allStudents = [];
+    snap.forEach(doc => allStudents.push(Object.assign({id: doc.id}, doc.data())));
+    if(!allStudents.length){
+      area.innerHTML = 'لا يوجد طلاب مسجلين بعد.';
+      return;
+    }
+    document.getElementById('filters').classList.remove('hidden');
+    render();
+  }catch(e){
+    area.innerHTML = '<p>تعذر تحميل الطلاب: ' + esc(e.message) + '</p>';
+  }
+}
+
+function render(){
+  const area = document.getElementById('area');
+  const q = document.getElementById('searchBox').value.trim();
+  const fs = document.getElementById('stageFilter').value;
+  const fg = document.getElementById('gradeFilter').value;
+
+  const list = allStudents.filter(s =>
+    (!q || String(s.name || '').includes(q)) &&
+    (!fs || stageOf(s) === fs) &&
+    (!fg || gradeOf(s) === fg)
+  ).sort((a,b)=>{
+    const sa = stageOf(a) === 'primary' ? 0 : 1, sb = stageOf(b) === 'primary' ? 0 : 1;
+    if(sa !== sb) return sa - sb;
+    if(gradeOf(a) !== gradeOf(b)) return Number(gradeOf(a)) - Number(gradeOf(b));
+    return String(a.name || '').localeCompare(String(b.name || ''), 'ar');
   });
+
+  document.getElementById('countNote').textContent = 'عدد الطلاب: ' + list.length + ' من ' + allStudents.length;
+
+  if(!list.length){ area.innerHTML = '<p>لا يوجد طلاب مطابقون.</p>'; return; }
+
+  area.innerHTML = list.map(s=>{
+    const chks = subjectsFor(s).map(key=>{
+      const checked = (s.subjects && s.subjects[key]) ? 'checked' : '';
+      return `<label><input type="checkbox" id="chk-${esc(s.id)}-${key}" ${checked}> ${esc(SUBJECT_LABELS[key] || key)}</label>`;
+    }).join('');
+    return `<div class="card2">
+      <strong>${esc(s.name)}</strong>
+      <div class="small-note stage-tag">${esc(STAGE_LABELS[stageOf(s)])} — ${esc(gradeLabel(s))}</div>
+      ${s.email ? `<div class="small-note">${esc(s.email)}</div>` : ''}
+      <div class="chk-row">${chks || '<span class="small-note">لا توجد مواد لهذا الصف.</span>'}</div>
+      <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="saveStudent('${esc(s.id)}')">حفظ</button>
+      <span class="small-note" id="msg-${esc(s.id)}"></span>
+    </div>`;
+  }).join('');
 }
 
 async function saveStudent(id){
-  const subjects = {};
-  Object.keys(SUBJECT_LABELS).forEach(key=>{
-    subjects[key] = document.getElementById(`${id}-${key}`).checked;
+  const s = allStudents.find(x => x.id === id);
+  const msg = document.getElementById('msg-' + id);
+  if(!s) return;
+  const upd = {};
+  const local = Object.assign({}, s.subjects || {});
+  subjectsFor(s).forEach(key=>{
+    const box = document.getElementById('chk-' + id + '-' + key);
+    if(box){ upd['subjects.' + key] = box.checked; local[key] = box.checked; }
   });
+  msg.textContent = 'جارِ الحفظ...';
   try{
-    await db.collection('students').doc(id).update({subjects});
-    document.getElementById('msg-'+id).textContent = 'تم الحفظ ✓';
+    await db.collection('students').doc(id).update(upd);
+    s.subjects = local;
+    msg.textContent = 'تم الحفظ ✓';
   }catch(e){
-    document.getElementById('msg-'+id).textContent = 'خطأ: ' + e.message;
+    msg.textContent = 'خطأ: ' + e.message;
   }
 }
 </script>
