@@ -158,27 +158,31 @@ function renderPage(){
 }
 
 // ---- Live groups (schedule set by admin) ----
+let roomNames = {};
 async function renderLiveGroups(subjectKey){
   const grid = document.getElementById('liveGrid');
   if(!grid) return;
   grid.innerHTML = '<p class="small-note">جارِ تحميل المواعيد...</p>';
   let schedule = {};
+  roomNames = {};
   try{
     const doc = await dbGlobal.collection('groupSchedules').doc(comboId(subjectKey)).get();
     if(doc.exists) schedule = doc.data().groups || {};
   }catch(e){}
+  try{
+    const rdoc = await dbGlobal.collection('rooms').doc(comboId(subjectKey)).get();
+    if(rdoc.exists) roomNames = rdoc.data().names || {};
+  }catch(e){}
   grid.innerHTML = '';
   for(let i=1;i<=GROUP_COUNT;i++){
     const g = schedule[i] || {};
-    const uid = `${currentStage}-${currentGrade}-${subjectKey}-${i}`;
-    const link = `https://meet.jit.si/MinassaNasamaya-${uid}`;
     const scheduleText = (g.day && g.time) ? `${esc(g.day)} · الساعة ${esc(g.time)}` : 'لم يتم تحديد الميعاد بعد';
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <h3>المجموعة ${i}</h3>
       <div class="meta">${scheduleText}</div>
-      <button class="btn" style="width:100%;padding:9px 0;font-size:.9em" onclick="joinGroup('${uid}','${link}')">انضم الآن</button>`;
+      <button class="btn" style="width:100%;padding:9px 0;font-size:.9em" onclick="joinGroup(${i})">انضم الآن</button>`;
     grid.appendChild(card);
   }
   let note = document.getElementById('joinNote');
@@ -191,11 +195,16 @@ async function renderLiveGroups(subjectKey){
   note.textContent = 'بعد الضغط على "انضم الآن"، هتفتح الحصة جوه نفس الصفحة مباشرة. وافق على إذن الكاميرا والميكروفون لما المتصفح يطلبه.';
 }
 let jitsiApi = null;
-function joinGroup(uid, link){
+function joinGroup(i){
+  const room = roomNames[i];
+  if(!room){
+    alert('رابط هذه الحصة لسه ما اتفتحش. جرّب قبل ميعاد الحصة بقليل أو تواصل معنا.');
+    return;
+  }
   const name = (currentStudent && currentStudent.name) || 'طالب';
   const container = document.getElementById('meetingContainer');
   if(!container || typeof JitsiMeetExternalAPI === 'undefined'){
-    window.open(link + '#userInfo.displayName="' + encodeURIComponent(name) + '"', '_blank', 'noopener');
+    window.open('https://meet.jit.si/' + encodeURIComponent(room) + '#userInfo.displayName="' + encodeURIComponent(name) + '"', '_blank', 'noopener');
     return;
   }
   if(jitsiApi){ try{ jitsiApi.dispose(); }catch(e){} jitsiApi = null; }
@@ -204,7 +213,7 @@ function joinGroup(uid, link){
   container.innerHTML = '';
   container.style.height = h + 'px';
   jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
-    roomName: 'MinassaNasamaya-' + uid,
+    roomName: room,
     parentNode: container,
     width: '100%',
     height: h,
