@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>إعدادات مظهر الموقع - منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.crow input[type=color]{width:64px;height:40px;padding:2px;border:1px solid var(--line);border-radius:6px;background:transparent;cursor:pointer}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+<div class="wrap">
+  <h1>إعدادات مظهر الموقع</h1>
+  <p class="small-note">اختر لونًا أو جاهزًا، وشوف التغيير هنا فورًا، وبعدها اضغط "حفظ للجميع". الطالب يقدر يغيّر مظهره لنفسه من زرار 🎨 في أسفل الصفحة.</p>
+  <div id="area">جارِ التحقق من الدخول...</div>
+</div>
+<footer class="wrap">منصة نسماية</footer>
+
+<script>
+const ADMIN_EMAIL = "nesmayaschool@gmail.com";
+const DEFAULTS = {paper:'#F6F1E4', ink:'#1E2A22', pine:'#26433A', gold:'#C98A3B', card:'#FFFFFF'};
+const LABELS = {
+  paper:'لون خلفية الصفحة',
+  ink:'لون النص',
+  pine:'اللون الأساسي (العناوين والتبويبات)',
+  gold:'لون الأزرار',
+  card:'لون البطاقات'
+};
+const PRESETS = [
+  {name:'الأصلي', c:DEFAULTS},
+  {name:'أخضر فاتح', c:{paper:'#F1F8F2', ink:'#17301F', pine:'#2E7D4F', gold:'#E8B04B', card:'#FFFFFF'}},
+  {name:'أزرق', c:{paper:'#EEF5FB', ink:'#14283A', pine:'#1B5E9B', gold:'#F2A93B', card:'#FFFFFF'}},
+  {name:'وردي', c:{paper:'#FDF1F5', ink:'#3A1A27', pine:'#B83B73', gold:'#F4B942', card:'#FFFFFF'}},
+  {name:'بنفسجي', c:{paper:'#F5F1FB', ink:'#241A3A', pine:'#6A3FB5', gold:'#F0B34A', card:'#FFFFFF'}},
+  {name:'داكن', c:{paper:'#14201A', ink:'#EAE6DA', pine:'#8FD3B4', gold:'#E0A84F', card:'#1D2D26'}}
+];
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let current = Object.assign({}, DEFAULTS);
+
+function mix(a, b, p){
+  const h = x => [1,3,5].map(i => parseInt(x.substr(i,2),16));
+  const A = h(a), B = h(b);
+  return '#' + A.map((v,i)=>('0' + Math.round(v*p + B[i]*(1-p)).toString(16)).slice(-2)).join('');
+}
+function toVars(c){
+  return {
+    'paper': c.paper, 'ink': c.ink, 'card': c.card,
+    'pine': c.pine, 'pine-dark': mix(c.pine, '#000000', 0.55),
+    'gold': c.gold, 'gold-soft': mix(c.gold, '#ffffff', 0.55),
+    'line': mix(c.ink, c.paper, 0.16)
+  };
+}
+function preview(){
+  const v = toVars(current);
+  Object.keys(v).forEach(k => document.documentElement.style.setProperty('--' + k, v[k]));
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  const area = document.getElementById('area');
+  if(!user){
+    area.innerHTML = '<p>لازم تسجّل دخول أولاً بحساب الأدمن.</p><a class="btn" href="login.html?next=admin-settings.html">تسجيل الدخول</a>';
+    return;
+  }
+  if(user.email !== ADMIN_EMAIL){
+    area.innerHTML = '<p>هذا الحساب غير مصرح له بالدخول لهذه الصفحة.</p>';
+    return;
+  }
+  try{
+    const doc = await db.collection('settings').doc('site').get();
+    if(doc.exists && doc.data().colors) current = Object.assign({}, DEFAULTS, doc.data().colors);
+  }catch(e){}
+  renderForm();
+  preview();
+});
+
+function renderForm(){
+  const area = document.getElementById('area');
+  const presetBtns = PRESETS.map((p,i)=>`<button class="tab" onclick="applyPreset(${i})">${p.name}</button>`).join('');
+  const rows = Object.keys(LABELS).map(k=>`<div class="crow"><label>${LABELS[k]}</label>
+      <input type="color" id="c-${k}" value="${current[k]}" oninput="setColor('${k}', this.value)"></div>`).join('');
+  area.innerHTML = `
+    <div class="card2">
+      <strong>ألوان جاهزة</strong>
+      <div class="presets" style="margin-top:8px">${presetBtns}</div>
+    </div>
+    <div class="card2">
+      <strong>تخصيص الألوان</strong>
+      <div style="margin-top:10px">${rows}</div>
+    </div>
+    <div class="card2">
+      <strong>معاينة</strong>
+      <div class="card" style="margin:10px 0"><h3>عنوان بطاقة</h3><div class="meta">وصف قصير للمعاينة</div></div>
+      <span class="btn">زرار</span>
+    </div>
+    <button class="btn" onclick="saveColors()">حفظ للجميع</button>
+    <button class="btn" style="background:#B5493F;color:#fff;margin-right:8px" onclick="resetColors()">إعادة الألوان الأصلية</button>
+    <div class="small-note" id="msg"></div>`;
+}
+function applyPreset(i){
+  current = Object.assign({}, PRESETS[i].c);
+  Object.keys(LABELS).forEach(k => { document.getElementById('c-' + k).value = current[k]; });
+  preview();
+}
+function setColor(k, val){
+  current[k] = val;
+  preview();
+}
+async function saveColors(){
+  const msg = document.getElementById('msg');
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('settings').doc('site').set({colors: current}, {merge: true});
+    msg.textContent = 'تم الحفظ ✓ هتظهر لكل الطلاب.';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+async function resetColors(){
+  if(!confirm('رجوع كل الألوان للأصل لكل الطلاب؟')) return;
+  const msg = document.getElementById('msg');
+  msg.textContent = 'جارِ الحفظ...';
+  try{
+    await db.collection('settings').doc('site').set({colors: firebase.firestore.FieldValue.delete()}, {merge: true});
+    current = Object.assign({}, DEFAULTS);
+    Object.keys(LABELS).forEach(k => { document.getElementById('c-' + k).value = current[k]; });
+    preview();
+    msg.textContent = 'تمت الإعادة للألوان الأصلية ✓';
+  }catch(e){ msg.textContent = 'خطأ: ' + e.message; }
+}
+</script>
+</body>
+</html>
