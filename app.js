@@ -198,20 +198,27 @@ function joinGroup(uid, link){
     window.open(link + '#userInfo.displayName="' + encodeURIComponent(name) + '"', '_blank', 'noopener');
     return;
   }
+  if(jitsiApi){ try{ jitsiApi.dispose(); }catch(e){} jitsiApi = null; }
+  const h = Math.max(480, Math.round(window.innerHeight * 0.85));
   container.classList.remove('hidden');
   container.innerHTML = '';
-  container.scrollIntoView({behavior:'smooth', block:'start'});
-  if(jitsiApi){ try{ jitsiApi.dispose(); }catch(e){} }
+  container.style.height = h + 'px';
   jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
     roomName: 'MinassaNasamaya-' + uid,
     parentNode: container,
     width: '100%',
-    height: 520,
+    height: h,
     userInfo: { displayName: name },
     configOverwrite: { prejoinPageEnabled: true }
   });
   const leaveBtn = document.getElementById('leaveBtn');
   if(leaveBtn) leaveBtn.classList.remove('hidden');
+  const goDown = function(){
+    const top = container.getBoundingClientRect().top + window.pageYOffset - 70;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+  };
+  setTimeout(goDown, 150);
+  setTimeout(goDown, 1000);
 }
 function leaveMeeting(){
   if(jitsiApi){ try{ jitsiApi.dispose(); }catch(e){} jitsiApi = null; }
