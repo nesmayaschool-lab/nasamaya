@@ -57,17 +57,30 @@ function initSubjectAccess(mode){
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center"><p>حدث خطأ في بيانات حسابك، تواصل معنا.</p></div>`;
       return;
     }
-    currentStudent = doc.data();
-    currentStage = currentStudent.stage || 'prep';
-    currentGrade = currentStudent.grade || "1";
+        currentStudent = doc.data();
     const isAdmin = user.email === ADMIN_EMAIL;
+    if(currentStudent.blocked && !isAdmin){
+      contentArea.classList.add('hidden');
+      authArea.innerHTML = `<div class="quiz-box" style="text-align:center"><p>تم إيقاف هذا الحساب. تواصل مع إدارة المنصة.</p><button class="btn" style="background:#888" onclick="firebase.auth().signOut().then(()=>location.reload())">تسجيل الخروج</button></div>`;
+      return;
+    }
+    const tStage = (currentStudent.teacherStage === 'primary' || currentStudent.teacherStage === 'prep') ? currentStudent.teacherStage : '';
+    const tSubjects = currentStudent.teacherSubjects || {};
+    const isTeacher = !isAdmin && !!tStage && tSubjects[pageSubject] === true;
+    const isStaff = isAdmin || isTeacher;
+    currentStage = isTeacher ? tStage : (currentStudent.stage || 'prep');
+    currentGrade = currentStudent.grade || "1";
+    if(isTeacher){
+      const gs = Object.keys(GRADE_LABELS[currentStage]);
+      currentGrade = gs.find(g => (CURRICULUM[currentStage][g] || []).includes(pageSubject)) || gs[0];
+    }
     const subjectInCurriculum = (CURRICULUM[currentStage][currentGrade] || []).includes(pageSubject);
-    if(!subjectInCurriculum && !isAdmin){
+    if(!subjectInCurriculum && !isStaff){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center"><p>هذه المادة ليست ضمن مواد صفّك.</p><a class="btn" href="index.html">الرئيسية</a></div>`;
       return;
     }
-    const active = isAdmin || (currentStudent.subjects && currentStudent.subjects[pageSubject]);
+    const active = isStaff || (currentStudent.subjects && currentStudent.subjects[pageSubject]);
     if(!active){
       contentArea.classList.add('hidden');
       authArea.innerHTML = `<div class="quiz-box" style="text-align:center">
@@ -79,15 +92,20 @@ function initSubjectAccess(mode){
       return;
     }
     let adminSwitch = '';
-    if(isAdmin){
-      let stageOpts = Object.keys(STAGE_LABELS).map(s=>`<option value="${s}" ${s===currentStage?'selected':''}>${STAGE_LABELS[s]}</option>`).join('');
-      adminSwitch = `<div style="margin:10px 0"><strong>معاينة الأدمن:</strong>
-        <select id="adminStageSel" onchange="changeAdminStage(this.value)" style="margin-right:8px;width:auto;display:inline-block">${stageOpts}</select>
-        <select id="adminGradeSel" onchange="changeAdminGrade(this.value)" style="margin-right:8px;width:auto;display:inline-block"></select></div>`;
+    if(isStaff){
+      let stageSelHtml = '';
+      if(isAdmin){
+        const stageOpts = Object.keys(STAGE_LABELS).map(s=>`<option value="${s}" ${s===currentStage?'selected':''}>${STAGE_LABELS[s]}</option>`).join('');
+        stageSelHtml = `<select id="adminStageSel" onchange="changeAdminStage(this.value)" style="margin-right:8px;width:auto;display:inline-block">${stageOpts}</select>`;
+      }
+      const pubLink = isTeacher ? '<a class="btn" style="margin-right:10px;padding:6px 14px;font-size:.8em" href="teacher-materials.html">نشر مراجعة أو اختبار</a>' : '';
+      adminSwitch = `<div style="margin:10px 0"><strong>${isAdmin ? 'معاينة الأدمن:' : 'اختر الصف:'}</strong>
+        ${stageSelHtml}
+        <select id="adminGradeSel" onchange="changeAdminGrade(this.value)" style="margin-right:8px;width:auto;display:inline-block"></select>${pubLink}</div>`;
     }
     authArea.innerHTML = `<div class="small-note">مرحبًا ${esc(currentStudent.name)} — <span id="gradeLabel">${GRADE_LABELS[currentStage][currentGrade]}</span>
       <button class="btn" style="background:#888;padding:6px 14px;font-size:.8em;margin-right:10px" onclick="firebase.auth().signOut().then(()=>location.reload())">خروج</button></div>${adminSwitch}`;
-    if(isAdmin) populateAdminGradeSel();
+    if(isStaff) populateAdminGradeSel();
     contentArea.classList.remove('hidden');
     renderSubNav();
     renderPage();
