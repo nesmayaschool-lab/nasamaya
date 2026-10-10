@@ -335,5 +335,47 @@ auth.onAuthStateChanged(function(user){
     }).join('') + '</div>';
 });
   </script>
+  <script>
+/* قسم المدرس: يظهر فقط لحساب أعطيته الصلاحية، ومواده فقط */
+(function(){
+  var hub = document.createElement('div');
+  hub.className = 'wrap';
+  hub.id = 'teacherHub';
+  var dash = document.getElementById('dashboardArea');
+  dash.parentNode.insertBefore(hub, dash.nextSibling);
+
+  auth.onAuthStateChanged(async function(user){
+    if(!user || user.email === 'nesmayaschool@gmail.com'){ hub.innerHTML = ''; return; }
+    var d;
+    try{ d = await db.collection('students').doc(user.uid).get(); }catch(e){ return; }
+    var s = d.exists ? d.data() : {};
+    var t = s.teacherStage;
+    var subs = Object.keys(s.teacherSubjects || {}).filter(function(k){ return s.teacherSubjects[k] === true; });
+    if(s.blocked || (t !== 'primary' && t !== 'prep') || !subs.length){ hub.innerHTML = ''; return; }
+
+    hub.innerHTML = '<h2 class="section-title" style="margin-top:30px">لوحة المدرس — ' + STAGE_LABELS[t] + '</h2>' +
+      '<p><a class="btn" href="teacher-materials.html">نشر مراجعة أو اختبار أو أسئلة تفاعلية</a></p>' +
+      '<select id="tGrade" style="max-width:240px;margin-bottom:14px"></select><div class="grid" id="tGrid"></div>';
+    var sel = document.getElementById('tGrade');
+    Object.keys(GRADE_LABELS[t]).forEach(function(g){
+      var o = document.createElement('option');
+      o.value = g; o.textContent = GRADE_LABELS[t][g];
+      sel.appendChild(o);
+    });
+    function draw(){
+      var list = (CURRICULUM[t][sel.value] || []).filter(function(k){ return subs.indexOf(k) > -1; });
+      document.getElementById('tGrid').innerHTML = list.length ? list.map(function(key){
+        return '<div class="card"><h3>' + SUBJECT_LABELS[key] + '</h3>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+          '<a class="btn" style="font-size:.85em;padding:8px 16px" href="subject-live.html?subject=' + key + '">البث المباشر</a>' +
+          '<a class="btn" style="font-size:.85em;padding:8px 16px;background:transparent;border:2px solid var(--pine);color:var(--pine)" href="subject-exams.html?subject=' + key + '">المراجعات والاختبارات</a>' +
+          '</div></div>';
+      }).join('') : '<p class="small-note">مادتك غير موجودة في هذا الصف.</p>';
+    }
+    sel.onchange = draw;
+    draw();
+  });
+})();
+    </script>
 </body>
     </html>
