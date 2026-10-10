@@ -146,7 +146,7 @@ auth.onAuthStateChanged(async (user)=>{
   const st = (student.stage && CURRICULUM[student.stage]) ? student.stage : 'prep';
   const gr = (student.grade && CURRICULUM[st][student.grade]) ? String(student.grade) : "1";
   let html = '';
-  if(doc.exists){
+  if(doc.exists && !isAdmin && !student.teacherStage){
     html += `<h2 class="section-title">موادك — ${GRADE_LABELS[st][gr]}</h2>
       <div class="grid">${subjectCardsHtml(st, gr)}</div>`;
   }
