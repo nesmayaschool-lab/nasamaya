@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نشر مراجعة - المدرس - منصة نسماية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=2">
+<style>
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;margin-bottom:10px;background:#fff;color:var(--ink)}
+.card2{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row2{display:flex;gap:10px;flex-wrap:wrap}
+.row2 > div{flex:1;min-width:140px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="config.js?v=2"></script>
+</head>
+<body>
+<header><div class="wrap"><a href="index.html" class="brand">🍃 منصة نسماية</a></div></header>
+<div class="wrap">
+  <h1>نشر مراجعة أو اختبار (للمدرس)</h1>
+  <div id="area">جارِ التحقق من الدخول...</div>
+</div>
+<footer class="wrap">منصة نسماية</footer>
+
+<script>
+const KIND_LABELS = {exam:"اختبار", review:"مراجعة", weekly:"تدريب أسبوعي"};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let T = null;
+
+function esc(t){
+  return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+auth.onAuthStateChanged(async (user)=>{
+  const area = document.getElementById('area');
+  if(!user){
+    area.innerHTML = '<p>لازم تسجّل دخول أولاً.</p><a class="btn" href="login.html?next=teacher-materials.html">تسجيل الدخول</a>';
+    return;
+  }
+  let d;
+  try{ d = await db.collection('students').doc(user.uid).get(); }
+  catch(e){ area.innerHTML = '<p>تعذر التحقق من الحساب.</p>'; return; }
+  const s = d.exists ? d.data() : {};
+  const stage = (s.teacherStage === 'primary' || s.teacherStage === 'prep') ? s.teacherStage : '';
+  const subs = Object.keys(s.teacherSubjects || {}).filter(k => s.teacherSubjects[k] === true);
+  if(s.blocked){
+    area.innerHTML = '<p>تم إيقاف هذا الحساب. تواصل مع إدارة المنصة.</p>';
+    return;
+  }
+  if(!stage || !subs.length){
+    area.innerHTML = '<p>هذه الصفحة للمدرسين المعتمدين من الإدارة فقط.</p><a class="btn" href="index.html">الرئيسية</a>';
+    return;
+  }
+  T = {stage: stage, subjects: subs};
+  renderForm();
+});
+
+function comboId(){
+  return document.getElementById('subjSel').value + '_' + T.stage + '_' + document.getElementById('gradeSel').value;
+}
+
+function renderForm(){
+  const area = document.getElementById('area');
+  area.innerHTML = `
+    <div class="card2">
+      <p class="small-note">${esc(STAGE_LABELS[T.stage])} — تنشر لمادتك فقط.</p>
+      <div class="row2">
+        <div><label>الصف</label><select id="gradeSel" onchange="updateSubjects()"></select></div>
+        <div><label>المادة</label><select id="subjSel" onchange="loadList()"></select></div>
+        <div><label>النوع</label>
+          <select id="kindSel">
+            <option value="review">مراجعة</option>
+            <option value="exam">اختبار</option>
+            <option value="weekly">تدريب أسبوعي</option>
+          </select>
+        </div>
+      </div>
+      <label>العنوان</label>
+      <input type="text" id="titleInput" placeholder="مثال: مراجعة الوحدة الأولى" maxlength="200">
+      <label>المحتوى (هيظهر للطالب ويتحمّل PDF بنفس الترتيب)</label>
+      <textarea id="bodyInput" rows="10" placeholder="اكتب هنا نص المراجعة أو أسئلة الاختبار..."></textarea>
+      <label style="margin-top:6px">أسئلة تفاعلية (اختياري)</label>
+      <div id="qBuilder"></div>
+      <button class="btn" style="font-size:.85em;padding:7px 16px;margin-bottom:12px" onclick="addQBuilderRow()">+ إضافة سؤال تفاعلي</button>
+      <br>
+      <button class="btn" onclick="publishMaterial()">نشر للطلاب</button>
+      <div class="small-note" id="publishMsg"></div>
+    </div>
+    <h2 class="section-title">المحتوى المنشور حاليًا</h2>
+    <div id="listArea">جارِ التحميل...</div>
+  `;
+  const gradeSel = document.getElementById('gradeSel');
+  Object.keys(GRADE_LABELS[T.stage]).forEach(g=>{
+    const o = document.createElement('option');
+    o.value = g; o.textContent = GRADE_LABELS[T.stage][g];
+    gradeSel.appendChild(o);
+  });
+  updateSubjects();
+}
+
+function updateSubjects(){
+  const grade = document.getElementById('gradeSel').value;
+  const subjSel = document.getElementById('subjSel');
+  subjSel.innerHTML = '';
+  (CURRICULUM[T.stage][grade] || []).filter(k => T.subjects.indexOf(k) > -1).forEach(k=>{
+    const o = document.createElement('option');
+    o.value = k; o.textContent = SUBJECT_LABELS[k];
+    subjSel.appendChild(o);
+  });
+  loadList();
+}
+
+let qRows = [];
+function addQBuilderRow(){
+  qRows.push({id: Date.now() + Math.floor(Math.random()*1000), q:'', options:['','',''], correct:0});
+  renderQBuilder();
+}
+function removeQBuilderRow(id){
+  qRows = qRows.filter(r=>r.id!==id);
+  renderQBuilder();
+}
+function updateQBuilder(id, field, val, optIndex){
+  const row = qRows.find(r=>r.id===id);
+  if(!row) return;
+  if(field==='q') row.q = val;
+  else if(field==='opt') row.options[optIndex] = val;
+  else if(field==='correct') row.correct = optIndex;
+}
+function renderQBuilder(){
+  const area = document.getElementById('qBuilder');
+  area.innerHTML = '';
+  qRows.forEach(row=>{
+    const card = document.createElement('div');
+    card.className = 'card2';
+    let opts = '';
+    row.options.forEach((o,oi)=>{
+      opts += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+        <input type="radio" name="corr-${row.id}" ${oi===row.correct?'checked':''} onchange="updateQBuilder(${row.id},'correct',null,${oi})" style="width:auto;margin-bottom:0">
+        <input type="text" placeholder="اختيار ${oi+1}" value="${esc(o).replace(/"/g,'&quot;')}" oninput="updateQBuilder(${row.id},'opt',this.value,${oi})" style="margin-bottom:0">
+      </div>`;
+    });
+    card.innerHTML = `<textarea rows="2" placeholder="نص السؤال" oninput="updateQBuilder(${row.id},'q',this.value)">${esc(row.q)}</textarea>
+      ${opts}
+      <button class="btn" style="background:#B5493F;color:#fff;font-size:.8em;padding:6px 14px" onclick="removeQBuilderRow(${row.id})">حذف السؤال</button>`;
+    area.appendChild(card);
+  });
+}
+
+async function publishMaterial(){
+  const kind = document.getElementById('kindSel').value;
+  const title = document.getElementById('titleInput').value.trim();
+  const body = document.getElementById('bodyInput').value.trim();
+  const msg = document.getElementById('publishMsg');
+  if(!document.getElementById('subjSel').value){ msg.textContent = 'مادتك غير موجودة في هذا الصف'; return; }
+  if(!title || !body){ msg.textContent = 'اكتب العنوان والمحتوى'; return; }
+  const questions = qRows
+    .filter(r=>r.q.trim() && r.options.every(o=>o.trim()))
+    .map(r=>({q:r.q.trim(), options:r.options.map(o=>o.trim()), correct:r.correct}));
+  msg.textContent = 'جارِ النشر...';
+  try{
+    await db.collection('materials').doc(comboId()).collection('items').add({
+      kind, title, body, questions,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    msg.textContent = 'تم النشر بنجاح ✓';
+    document.getElementById('titleInput').value = '';
+    document.getElementById('bodyInput').value = '';
+    qRows = [];
+    renderQBuilder();
+    loadList();
+  }catch(e){
+    msg.textContent = 'خطأ: ' + e.message;
+  }
+}
+
+async function loadList(){
+  const listArea = document.getElementById('listArea');
+  if(!document.getElementById('subjSel').value){
+    listArea.innerHTML = '<p class="small-note">مادتك غير موجودة في هذا الصف.</p>';
+    return;
+  }
+  listArea.innerHTML = 'جارِ التحميل...';
+  try{
+    const snap = await db.collection('materials').doc(comboId()).collection('items').orderBy('createdAt','desc').get();
+    if(snap.empty){
+      listArea.innerHTML = '<p class="small-note">لا يوجد محتوى منشور لهذه المادة والصف بعد.</p>';
+      return;
+    }
+    listArea.innerHTML = '';
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const card = document.createElement('div');
+      card.className = 'card2';
+      card.innerHTML = `<div class="meta">${esc(KIND_LABELS[d.kind]||'')}</div>
+        <strong>${esc(d.title)}</strong>
+        <button class="btn" style="background:#B5493F;color:#fff;font-size:.8em;padding:6px 14px;margin-right:8px" onclick="deleteMaterial('${doc.id}')">حذف</button>`;
+      listArea.appendChild(card);
+    });
+  }catch(e){
+    listArea.innerHTML = '<p class="small-note">تعذر التحميل: ' + esc(e.message) + '</p>';
+  }
+}
+
+async function deleteMaterial(itemId){
+  if(!confirm('متأكد من الحذف؟')) return;
+  try{
+    await db.collection('materials').doc(comboId()).collection('items').doc(itemId).delete();
+  }catch(e){ alert('خطأ: ' + e.message); }
+  loadList();
+}
+</script>
+</body>
+</html>
