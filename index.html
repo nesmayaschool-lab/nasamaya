@@ -295,5 +295,45 @@ function renderBrowseSubjects(){
   });
 })();
           </script>
+  <script>
+/* ١) مكان لوحة التحكم: بيتعمل تحت قسم المواد تلقائيًا */
+(function(){
+  var hub = document.createElement('div');
+  hub.className = 'wrap';
+  hub.id = 'adminHub';
+  var dash = document.getElementById('dashboardArea');
+  dash.parentNode.insertBefore(hub, dash.nextSibling);
+})();
+
+/* ٢) أزرار كل مادة: البث المباشر + المراجعات والاختبارات */
+function subjectCardsHtml(stage, grade){
+  var subs = (CURRICULUM[stage] && CURRICULUM[stage][grade]) || [];
+  if(!subs.length) return '<p class="small-note">لا توجد مواد لهذا الصف بعد.</p>';
+  return subs.map(function(key){
+    return '<div class="card"><h3>' + SUBJECT_LABELS[key] + '</h3>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+      '<a class="btn" style="font-size:.85em;padding:8px 16px" href="subject-live.html?subject=' + key + '">البث المباشر</a>' +
+      '<a class="btn" style="font-size:.85em;padding:8px 16px;background:transparent;border:2px solid var(--pine);color:var(--pine)" href="subject-exams.html?subject=' + key + '">المراجعات والاختبارات</a>' +
+      '</div></div>';
+  }).join('');
+}
+
+/* ٣) لوحة التحكم: تظهر لحساب الأدمن فقط */
+auth.onAuthStateChanged(function(user){
+  var box = document.getElementById('adminHub');
+  if(!box) return;
+  if(!user || user.email !== 'nesmayaschool@gmail.com'){ box.innerHTML = ''; return; }
+  var items = [
+    ['إدارة اشتراكات الطلاب', 'admin-students.html', 'تفعيل المواد وقائمة الطلاب'],
+    ['المواعيد والأسعار وروابط الحصص', 'admin-groups.html', 'مواعيد المجموعات وسعر كل مادة وتجديد الروابط'],
+    ['المراجعات والاختبارات', 'admin-materials.html', 'نشر محتوى جديد للطلاب'],
+    ['إعدادات الموقع', 'admin-settings.html', 'رسالة الترحيب والألوان']
+  ];
+  box.innerHTML = '<h2 class="section-title" style="margin-top:30px">لوحة التحكم (لك أنت فقط)</h2><div class="grid">' +
+    items.map(function(x){
+      return '<a href="' + x[1] + '" class="card"><h3>' + x[0] + '</h3><div class="meta">' + x[2] + '</div></a>';
+    }).join('') + '</div>';
+});
+  </script>
 </body>
     </html>
