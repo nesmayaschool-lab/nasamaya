@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="config.js"></script>
-  <script src="settings.js?v=1"></script>
+<script src="settings.js?v=1"></script>
 </head>
 <body>
 <header><div class="wrap" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -29,6 +29,7 @@
   </a>
   <span id="headerAuth"></span>
 </div></header>
+
 <div class="wrap" id="welcomeBox" style="padding-top:18px">
   <div style="position:relative;background:#8E1263;border:3px solid #E5233D;border-radius:16px;padding:14px;text-align:center;box-shadow:0 4px 14px rgba(142,18,99,.35)">
     <svg width="44" height="44" viewBox="0 0 64 64" style="position:absolute;top:8px;right:8px" aria-hidden="true">
@@ -85,6 +86,8 @@
 </div>
 
 <div class="wrap" id="dashboardArea">جارِ التحميل...</div>
+<div class="wrap" id="adminHub"></div>
+<div class="wrap" id="teacherHub"></div>
 
 <section class="wrap">
   <h2 class="section-title">الاشتراك</h2>
@@ -94,32 +97,64 @@
   </a>
 </section>
 
-
-  <section class="wrap" id="ratingSection">
-  <h2 class="section-title">قيّم المنصة</h2>
-  <div class="quiz-box" style="max-width:none;text-align:center">
-    <div id="ratingAvg" class="small-note" style="font-size:1em;opacity:.9">جارِ تحميل التقييم...</div>
-    <div id="ratingForm"></div>
-  </div>
-  <div id="feedbackAdmin"></div>
-  </section>
 <footer class="wrap">منصة نسماية</footer>
-<script src="app.js"></script>
+
 <script>
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+/* كارت المادة: البث المباشر + المراجعات والاختبارات */
+function cardHtml(key){
+  return '<div class="card"><h3>' + SUBJECT_LABELS[key] + '</h3>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+    '<a class="btn" style="font-size:.85em;padding:8px 16px" href="subject-live.html?subject=' + key + '">البث المباشر</a>' +
+    '<a class="btn" style="font-size:.85em;padding:8px 16px;background:transparent;border:2px solid var(--pine);color:var(--pine)" href="subject-exams.html?subject=' + key + '">المراجعات والاختبارات</a>' +
+    '</div></div>';
+}
 function subjectCardsHtml(stage, grade){
-  const subs = CURRICULUM[stage][grade] || [];
-  let html = '';
-  subs.forEach(key=>{
-    html += `<a href="subject-live.html?subject=${key}" class="card">
-      <h3>${SUBJECT_LABELS[key]}</h3>
-      <div class="meta">البث المباشر · الاختبارات والمراجعات</div>
-    </a>`;
+  var subs = (CURRICULUM[stage] && CURRICULUM[stage][grade]) || [];
+  if(!subs.length) return '<p class="small-note">لا توجد مواد لهذا الصف بعد.</p>';
+  return subs.map(cardHtml).join('');
+}
+
+/* لوحة التحكم: للأدمن فقط */
+function renderAdminHub(isAdmin){
+  var box = document.getElementById('adminHub');
+  if(!isAdmin){ box.innerHTML = ''; return; }
+  var items = [
+    ['إدارة اشتراكات الطلاب', 'admin-students.html', 'تفعيل المواد وقائمة الطلاب والمدرسين'],
+    ['المواعيد والأسعار وروابط الحصص', 'admin-groups.html', 'مواعيد المجموعات وسعر كل مادة وتجديد الروابط'],
+    ['المراجعات والاختبارات', 'admin-materials.html', 'نشر محتوى جديد للطلاب'],
+    ['إعدادات الموقع', 'admin-settings.html', 'رسالة الترحيب والألوان']
+  ];
+  box.innerHTML = '<h2 class="section-title" style="margin-top:30px">لوحة التحكم (لك أنت فقط)</h2><div class="grid">' +
+    items.map(function(x){
+      return '<a href="' + x[1] + '" class="card"><h3>' + x[0] + '</h3><div class="meta">' + x[2] + '</div></a>';
+    }).join('') + '</div>';
+}
+
+/* لوحة المدرس: لحساب أعطيته صلاحية مدرس، ومواده فقط */
+function renderTeacherHub(student, isAdmin){
+  var hub = document.getElementById('teacherHub');
+  var t = student.teacherStage;
+  var subs = Object.keys(student.teacherSubjects || {}).filter(function(k){ return student.teacherSubjects[k] === true; });
+  if(isAdmin || student.blocked || (t !== 'primary' && t !== 'prep') || !subs.length){ hub.innerHTML = ''; return; }
+  hub.innerHTML = '<h2 class="section-title" style="margin-top:30px">لوحة المدرس — ' + STAGE_LABELS[t] + '</h2>' +
+    '<p><a class="btn" href="teacher-materials.html">نشر مراجعة أو اختبار أو أسئلة تفاعلية</a></p>' +
+    '<select id="tGrade" style="max-width:240px;margin-bottom:14px"></select><div class="grid" id="tGrid"></div>';
+  var sel = document.getElementById('tGrade');
+  Object.keys(GRADE_LABELS[t]).forEach(function(g){
+    var o = document.createElement('option');
+    o.value = g; o.textContent = GRADE_LABELS[t][g];
+    sel.appendChild(o);
   });
-  return html || '<p class="small-note">لا توجد مواد لهذا الصف بعد.</p>';
+  function draw(){
+    var list = (CURRICULUM[t][sel.value] || []).filter(function(k){ return subs.indexOf(k) > -1; });
+    document.getElementById('tGrid').innerHTML = list.length ? list.map(cardHtml).join('') : '<p class="small-note">مادتك غير موجودة في هذا الصف.</p>';
+  }
+  sel.onchange = draw;
+  draw();
 }
 
 auth.onAuthStateChanged(async (user)=>{
@@ -136,13 +171,21 @@ auth.onAuthStateChanged(async (user)=>{
         <p>سجّل دخولك أو اعمل حساب جديد لتشوف مواد صفّك وتدخل حصصك.</p>
         <a class="btn" href="login.html">تسجيل الدخول / حساب جديد</a>
       </div>`;
+    document.getElementById('adminHub').innerHTML = '';
+    document.getElementById('teacherHub').innerHTML = '';
     return;
   }
   headerAuth.innerHTML = `<button class="btn" style="padding:8px 18px;font-size:.9em;background:#888" onclick="firebase.auth().signOut().then(()=>location.reload())">تسجيل الخروج</button>`;
-    const doc = await db.collection('students').doc(user.uid).get();
+  let doc;
+  try{ doc = await db.collection('students').doc(user.uid).get(); }
+  catch(e){ area.innerHTML = '<p>تعذر تحميل بيانات حسابك.</p>'; return; }
   const isAdmin = user.email === "nesmayaschool@gmail.com";
   if(!doc.exists && !isAdmin){ area.innerHTML = '<p>حدث خطأ في بيانات حسابك.</p>'; return; }
   const student = doc.exists ? doc.data() : {};
+  if(student.blocked && !isAdmin){
+    area.innerHTML = '<p>تم إيقاف هذا الحساب. تواصل مع إدارة المنصة.</p>';
+    return;
+  }
   const st = (student.stage && CURRICULUM[student.stage]) ? student.stage : 'prep';
   const gr = (student.grade && CURRICULUM[st][student.grade]) ? String(student.grade) : "1";
   let html = '';
@@ -166,6 +209,8 @@ auth.onAuthStateChanged(async (user)=>{
     });
     updateBrowseGrades();
   }
+  renderAdminHub(isAdmin);
+  renderTeacherHub(student, isAdmin);
 });
 
 function updateBrowseGrades(){
@@ -182,12 +227,17 @@ function renderBrowseSubjects(){
   const grade = document.getElementById('browseGrade').value;
   document.getElementById('browseGrid').innerHTML = subjectCardsHtml(stage, grade);
 }
+
+/* رسالة الترحيب من لوحة الإعدادات */
+db.collection('settings').doc('site').get().then(function(d){
+  var w = d.exists && d.data().welcome;
+  if(!w) return;
+  if(w.title) document.getElementById('welcomeTitle').textContent = w.title;
+  if(w.text) document.getElementById('welcomeText').textContent = w.text;
+}).catch(function(){});
 </script>
-  <script>
-(function(){
-  var avgBox = document.getElementById('ratingAvg');
-  var formBox = document.getElementById('ratingForm');
-  var chosen = 0;
+</body>
+</html>sen = 0;
   var studentName = '';
 
   function showAvg(sum, n){
