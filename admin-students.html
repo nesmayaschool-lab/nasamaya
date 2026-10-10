@@ -13,6 +13,9 @@
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 .filters select,.filters input{width:auto;flex:1;min-width:130px}
 .stage-tag{display:inline-block;font-size:.85em;margin-top:2px}
+.role-box{margin:10px 0;padding:10px;border:1px dashed var(--line);border-radius:8px}
+.role-box select{width:100%;margin-top:6px}
+.blk{display:flex;align-items:center;gap:8px;margin:10px 0;font-weight:700;color:#B5493F}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -26,7 +29,12 @@
 <div class="wrap">
   <h1>إدارة اشتراكات الطلاب</h1>
   <div class="filters hidden" id="filters">
-    <input type="text" id="searchBox" placeholder="ابحث باسم الطالب" oninput="render()">
+    <input type="text" id="searchBox" placeholder="ابحث بالاسم أو الإيميل" oninput="render()">
+    <select id="roleFilter" onchange="render()">
+      <option value="">كل الحسابات</option>
+      <option value="teachers">المدرسين فقط</option>
+      <option value="blocked">الموقوفين فقط</option>
+    </select>
     <select id="stageFilter" onchange="render()">
       <option value="">كل المراحل</option>
       <option value="primary">التعليم الابتدائي</option>
@@ -61,6 +69,7 @@ function esc(t){
 }
 function stageOf(s){ return (s.stage && CURRICULUM[s.stage]) ? s.stage : 'prep'; }
 function gradeOf(s){ return s.grade ? String(s.grade) : '1'; }
+function teacherOf(s){ return (s.teacherStage === 'prep' || s.teacherStage === 'primary') ? s.teacherStage : ''; }
 function subjectsFor(s){
   const st = stageOf(s);
   return (CURRICULUM[st] && CURRICULUM[st][gradeOf(s)]) || [];
@@ -68,6 +77,11 @@ function subjectsFor(s){
 function gradeLabel(s){
   const st = stageOf(s), g = gradeOf(s);
   return (GRADE_LABELS[st] && GRADE_LABELS[st][g]) || ('الصف ' + g);
+}
+function stageSubjects(stage){
+  const set = {};
+  Object.keys(CURRICULUM[stage] || {}).forEach(g => (CURRICULUM[stage][g] || []).forEach(k => { set[k] = true; }));
+  return Object.keys(set);
 }
 
 auth.onAuthStateChanged(async (user)=>{
@@ -104,11 +118,14 @@ async function loadStudents(){
 function render(){
   const area = document.getElementById('area');
   const q = document.getElementById('searchBox').value.trim();
+  const fr = document.getElementById('roleFilter').value;
   const fs = document.getElementById('stageFilter').value;
   const fg = document.getElementById('gradeFilter').value;
 
   const list = allStudents.filter(s =>
-    (!q || String(s.name || '').includes(q)) &&
+    (!q || String(s.name || '').includes(q) || String(s.email || '').includes(q)) &&
+    (fr !== 'teachers' || teacherOf(s)) &&
+    (fr !== 'blocked' || s.blocked) &&
     (!fs || stageOf(s) === fs) &&
     (!fg || gradeOf(s) === fg)
   ).sort((a,b)=>{
@@ -118,24 +135,53 @@ function render(){
     return String(a.name || '').localeCompare(String(b.name || ''), 'ar');
   });
 
-  document.getElementById('countNote').textContent = 'عدد الطلاب: ' + list.length + ' من ' + allStudents.length;
+  document.getElementById('countNote').textContent = 'عدد الحسابات: ' + list.length + ' من ' + allStudents.length;
 
-  if(!list.length){ area.innerHTML = '<p>لا يوجد طلاب مطابقون.</p>'; return; }
+  if(!list.length){ area.innerHTML = '<p>لا يوجد حسابات مطابقة.</p>'; return; }
 
   area.innerHTML = list.map(s=>{
+    const t = teacherOf(s);
     const chks = subjectsFor(s).map(key=>{
       const checked = (s.subjects && s.subjects[key]) ? 'checked' : '';
       return `<label><input type="checkbox" id="chk-${esc(s.id)}-${key}" ${checked}> ${esc(SUBJECT_LABELS[key] || key)}</label>`;
     }).join('');
+    const subsTxt = t ? Object.keys(s.teacherSubjects || {}).filter(k => s.teacherSubjects[k]).map(k => SUBJECT_LABELS[k] || k).join('، ') : '';
+    const tag = (t ? `<div class="small-note" style="font-weight:700;opacity:1">👨‍🏫 ${t === 'prep' ? 'مدرس إعدادي' : 'مدرس ابتدائي'} — ${esc(subsTxt)}</div>` : '') +
+      (s.blocked ? '<div class="small-note" style="font-weight:700;opacity:1;color:#B5493F">🚫 الحساب موقوف</div>' : '');
     return `<div class="card2">
       <strong>${esc(s.name)}</strong>
       <div class="small-note stage-tag">${esc(STAGE_LABELS[stageOf(s)])} — ${esc(gradeLabel(s))}</div>
       ${s.email ? `<div class="small-note">${esc(s.email)}</div>` : ''}
+      ${tag}
       <div class="chk-row">${chks || '<span class="small-note">لا توجد مواد لهذا الصف.</span>'}</div>
+      <div class="role-box">
+        <strong>صلاحية المدرس (بإذنك أنت فقط)</strong>
+        <select id="ts-${esc(s.id)}" onchange="renderTSubj('${esc(s.id)}')">
+          <option value="" ${!t ? 'selected' : ''}>طالب عادي</option>
+          <option value="prep" ${t === 'prep' ? 'selected' : ''}>مدرس إعدادي</option>
+          <option value="primary" ${t === 'primary' ? 'selected' : ''}>مدرس ابتدائي</option>
+        </select>
+        <div class="chk-row" id="tsub-${esc(s.id)}"></div>
+      </div>
+      <label class="blk"><input type="checkbox" id="blk-${esc(s.id)}" ${s.blocked ? 'checked' : ''}> 🚫 إيقاف هذا الحساب (لا يدخل أي محتوى)</label>
       <button class="btn" style="font-size:.85em;padding:7px 16px" onclick="saveStudent('${esc(s.id)}')">حفظ</button>
       <span class="small-note" id="msg-${esc(s.id)}"></span>
     </div>`;
   }).join('');
+  list.forEach(s => renderTSubj(s.id));
+}
+
+function renderTSubj(id){
+  const s = allStudents.find(x => x.id === id);
+  const sel = document.getElementById('ts-' + id);
+  const box = document.getElementById('tsub-' + id);
+  if(!s || !sel || !box) return;
+  const st = sel.value;
+  if(!st){ box.innerHTML = ''; return; }
+  const cur = s.teacherSubjects || {};
+  box.innerHTML = '<span class="small-note" style="width:100%">مواد هذا المدرس:</span>' + stageSubjects(st).map(k =>
+    `<label><input type="checkbox" id="tsub-${esc(id)}-${k}" ${cur[k] ? 'checked' : ''}> ${esc(SUBJECT_LABELS[k] || k)}</label>`
+  ).join('');
 }
 
 async function saveStudent(id){
@@ -148,11 +194,42 @@ async function saveStudent(id){
     const box = document.getElementById('chk-' + id + '-' + key);
     if(box){ upd['subjects.' + key] = box.checked; local[key] = box.checked; }
   });
+
+  const tsel = document.getElementById('ts-' + id);
+  let newTeacher = teacherOf(s);
+  let newSubjects = s.teacherSubjects || {};
+  if(tsel){
+    newTeacher = tsel.value;
+    if(newTeacher){
+      newSubjects = {};
+      stageSubjects(newTeacher).forEach(k => {
+        const b = document.getElementById('tsub-' + id + '-' + k);
+        if(b && b.checked) newSubjects[k] = true;
+      });
+      if(!Object.keys(newSubjects).length){
+        msg.textContent = 'اختر مادة واحدة على الأقل للمدرس';
+        return;
+      }
+      upd.teacherStage = newTeacher;
+      upd.teacherSubjects = newSubjects;
+    } else {
+      upd.teacherStage = firebase.firestore.FieldValue.delete();
+      upd.teacherSubjects = firebase.firestore.FieldValue.delete();
+    }
+  }
+  const blk = document.getElementById('blk-' + id);
+  if(blk) upd.blocked = blk.checked;
+
   msg.textContent = 'جارِ الحفظ...';
   try{
     await db.collection('students').doc(id).update(upd);
     s.subjects = local;
-    msg.textContent = 'تم الحفظ ✓';
+    if(newTeacher){ s.teacherStage = newTeacher; s.teacherSubjects = newSubjects; }
+    else { delete s.teacherStage; delete s.teacherSubjects; }
+    if(blk) s.blocked = blk.checked;
+    render();
+    const m2 = document.getElementById('msg-' + id);
+    if(m2) m2.textContent = 'تم الحفظ ✓';
   }catch(e){
     msg.textContent = 'خطأ: ' + e.message;
   }
